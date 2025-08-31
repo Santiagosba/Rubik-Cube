@@ -392,8 +392,8 @@ export default function RubikCube() {
       <div
         style={{
           marginTop: "10px",
-          color: "#777",
-          fontSize: "14px",
+          color: "#1a09b8ff",
+          fontSize: "20px",
           fontFamily: "monospace",
         }}
       >

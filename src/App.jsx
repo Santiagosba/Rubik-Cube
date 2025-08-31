@@ -11,7 +11,7 @@ function App() {
     <div
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #bffcff 0%, #dff9ff 100%)",
+        background: "linear-gradient(135deg, #29686bff 0%, #89abb3ff 100%)",
         padding: "4rem 2rem",
         fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
         position: "relative",
@@ -30,7 +30,7 @@ function App() {
           left: "-10%",
           width: "300px",
           height: "300px",
-          background: "radial-gradient(circle, #00ffff88, transparent 70%)",
+          background: "radial-gradient(circle, #3abbbb88, transparent 70%)",
           filter: "blur(80px)",
           zIndex: 0,
         }}
@@ -42,7 +42,7 @@ function App() {
           right: "-10%",
           width: "300px",
           height: "300px",
-          background: "radial-gradient(circle, #ffffff88, transparent 70%)",
+          background: "radial-gradient(circle, #4c6d8b88, transparent 70%)",
           filter: "blur(80px)",
           zIndex: 0,
         }}
@@ -62,10 +62,10 @@ function App() {
 
       <div
         style={{
-          background: "rgba(255, 255, 255, 0.25)",
+          background: "rgba(61, 112, 187, 0.25)",
           border: "1px solid rgba(255, 255, 255, 0.5)",
           boxShadow:
-            "0 12px 30px rgba(0, 255, 255, 0.25), inset 0 0 8px rgba(255,255,255,0.3)",
+            "0 12px 30px rgba(26, 70, 70, 0.25), inset 0 0 8px rgba(255,255,255,0.3)",
           backdropFilter: "blur(18px)",
           WebkitBackdropFilter: "blur(18px)",
           borderRadius: "2rem",
