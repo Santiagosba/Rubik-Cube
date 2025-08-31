@@ -80,7 +80,7 @@ function App() {
           alignItems: "center",
         }}
       >
-        <CubeTimer />
+        <CubeTImer />
         <ProgressIndicator solved={true} />
         <RubikCube ref={cubeRef} />
       </div>
