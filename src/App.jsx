@@ -11,22 +11,22 @@ function App() {
     <div
       style={{
         minHeight: "100vh",
-        width: "100%", // ocupa todo el ancho
+        width: "100vw", // 👈 ocupa todo el ancho de la pantalla
         background: "linear-gradient(135deg, #29686bff 0%, #89abb3ff 100%)",
-        padding: "4rem 2rem",
         fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
         position: "relative",
-        overflow: "hidden",
+        overflowX: "hidden",
+        overflowY: "auto",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        justifyContent: "center", // centra verticalmente
+        padding: "4rem 2rem",
       }}
     >
-      {/* Glow decorativo al fondo */}
+      {/* Glows de fondo */}
       <div
         style={{
-          position: "absolute",
+          position: "fixed",
           top: "-20%",
           left: "-10%",
           width: "300px",
@@ -38,7 +38,7 @@ function App() {
       />
       <div
         style={{
-          position: "absolute",
+          position: "fixed",
           bottom: "-20%",
           right: "-10%",
           width: "300px",
@@ -56,6 +56,7 @@ function App() {
           textShadow: "0 0 8px rgba(0, 255, 255, 0.3)",
           marginBottom: "2rem",
           zIndex: 1,
+          textAlign: "center",
         }}
       >
         Cubo de Rubik 3D Interactivo
@@ -79,6 +80,7 @@ function App() {
           flexDirection: "column",
           gap: "1rem",
           alignItems: "center",
+          justifyContent: "center",
         }}
       >
         <CubeTImer />
