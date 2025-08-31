@@ -11,6 +11,7 @@ function App() {
     <div
       style={{
         minHeight: "100vh",
+        width: "100%", // ocupa todo el ancho
         background: "linear-gradient(135deg, #29686bff 0%, #89abb3ff 100%)",
         padding: "4rem 2rem",
         fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
@@ -19,7 +20,7 @@ function App() {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        justifyContent: "flex-start",
+        justifyContent: "center", // centra verticalmente
       }}
     >
       {/* Glow decorativo al fondo */}
