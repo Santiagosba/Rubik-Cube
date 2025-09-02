@@ -11,19 +11,19 @@ function App() {
     <div
       style={{
         minHeight: "100vh",
-        width: "100vw", // 👈 ocupa todo el ancho de la pantalla
+        width: "100vw", // Ocupa toda la ventana
         background: "linear-gradient(135deg, #29686bff 0%, #89abb3ff 100%)",
+        padding: "4rem 1rem", // Menos padding horizontal en móvil
         fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
         position: "relative",
-        overflowX: "hidden",
-        overflowY: "auto",
+        overflowY: "auto", // Scroll vertical si es necesario
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        padding: "4rem 2rem",
+        justifyContent: "flex-start",
       }}
     >
-      {/* Glows de fondo */}
+      {/* Glow decorativo al fondo */}
       <div
         style={{
           position: "fixed",
@@ -52,7 +52,7 @@ function App() {
       <h1
         style={{
           color: "#00f0ff",
-          fontSize: "3rem",
+          fontSize: "2.2rem", // Más pequeño en móvil
           textShadow: "0 0 8px rgba(0, 255, 255, 0.3)",
           marginBottom: "2rem",
           zIndex: 1,
@@ -71,8 +71,8 @@ function App() {
           backdropFilter: "blur(18px)",
           WebkitBackdropFilter: "blur(18px)",
           borderRadius: "2rem",
-          padding: "2.5rem",
-          width: "100%",
+          padding: "2rem", // Ajuste para móviles
+          width: "95%", // Ajusta al ancho del móvil
           maxWidth: "960px",
           zIndex: 1,
           position: "relative",
@@ -80,7 +80,6 @@ function App() {
           flexDirection: "column",
           gap: "1rem",
           alignItems: "center",
-          justifyContent: "center",
         }}
       >
         <CubeTImer />
