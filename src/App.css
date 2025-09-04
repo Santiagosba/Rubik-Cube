@@ -99,7 +99,7 @@
 .app-container {
   min-height: 100vh;
   width: 100vw;
-  background: linear-gradient(135deg, rgb(44, 17, 199) 0%, rgb(11, 67, 185) 100%);
+  background: linear-gradient(135deg, rgb(32, 47, 109) 0%, rgb(0, 0, 0) 100%);
   padding: 4rem 1rem;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   position: relative;
@@ -121,7 +121,7 @@
 .glow.top {
   top: -20%;
   left: -10%;
-  background: radial-gradient(circle, #111ed388, transparent 70%);
+  background: radial-gradient(circle, #31346188, transparent 70%);
 }
 .glow.bottom {
   bottom: -20%;
