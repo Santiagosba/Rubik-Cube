@@ -1,12 +1,10 @@
-import React, { useRef } from "react";
+import React from "react";
 import RubikCube from "./components/RubikCube";
 import CubeTImer from "./components/CubeTImer";
 import ProgressIndicator from "./components/ProgressIndicator";
 import "./App.css";
 
 function App() {
-  const cubeRef = useRef();
-
   return (
     <div className="app-container">
       {/* Glow decorativo */}
@@ -23,7 +21,7 @@ function App() {
 
       {/* Cubo debajo */}
       <div className="cube-wrapper">
-        <RubikCube ref={cubeRef} />
+        <RubikCube />
       </div>
     </div>
   );
