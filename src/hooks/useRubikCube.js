@@ -48,12 +48,12 @@ export default function useRubikCube() {
     // de colores resalten por encima (antes era vidrio translúcido y apagaba
     // los colores contra el fondo).
     const baseMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0x0b0b12,
-      metalness: 0.2,
-      roughness: 0.35,
+      color: 0x2a2a38,
+      metalness: 0.15,
+      roughness: 0.4,
       clearcoat: 1,
-      clearcoatRoughness: 0.1,
-      reflectivity: 0.6,
+      clearcoatRoughness: 0.15,
+      reflectivity: 0.5,
       side: THREE.DoubleSide,
     });
 
@@ -77,13 +77,13 @@ export default function useRubikCube() {
       const mat = new THREE.MeshPhysicalMaterial({
         color,
         emissive: color,
-        emissiveIntensity: 0.45,
-        metalness: 0.1,
-        roughness: 0.3,
+        emissiveIntensity: 0.35,
+        metalness: 0.05,
+        roughness: 0.35,
         clearcoat: 1,
-        clearcoatRoughness: 0.1,
+        clearcoatRoughness: 0.12,
         side: THREE.DoubleSide,
-        reflectivity: 0.6,
+        reflectivity: 0.5,
       });
       const mesh = new THREE.Mesh(planeGeo, mat);
       mesh.position.set(...adjustedPos);
@@ -227,25 +227,34 @@ export default function useRubikCube() {
 
     createCubelets();
 
-    // Iluminación simple pero efectiva
-    const pointLight1 = new THREE.PointLight(0xffffff, 2, 100);
+    // Iluminación: varios puntos de luz para reflejos vivos en todas las caras
+    const pointLight1 = new THREE.PointLight(0xffffff, 3, 100);
     pointLight1.position.set(10, 10, 10);
     scene.add(pointLight1);
 
-    const pointLight2 = new THREE.PointLight(0xffffff, 1.5, 100);
+    const pointLight2 = new THREE.PointLight(0xffffff, 2.5, 100);
     pointLight2.position.set(-10, 10, -10);
     scene.add(pointLight2);
 
-    const pointLight3 = new THREE.PointLight(0xffffff, 1, 100);
+    const pointLight3 = new THREE.PointLight(0xffffff, 2, 100);
     pointLight3.position.set(0, -10, 10);
     scene.add(pointLight3);
 
-    // Luz ambiental para visibilidad
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+    // Relleno inferior para que ninguna cara quede en sombra
+    const pointLight4 = new THREE.PointLight(0xffffff, 1.5, 100);
+    pointLight4.position.set(0, 8, -12);
+    scene.add(pointLight4);
+
+    // Luz ambiental generosa para visibilidad general
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
     scene.add(ambientLight);
 
+    // Luz de hemisferio: cielo claro / suelo tenue, ilumina de forma uniforme
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x303040, 1.1);
+    scene.add(hemiLight);
+
     // Luz direccional principal
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.6);
     directionalLight.position.set(5, 10, 5);
     scene.add(directionalLight);
 
