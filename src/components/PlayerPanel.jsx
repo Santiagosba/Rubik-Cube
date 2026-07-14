@@ -1,6 +1,6 @@
 // src/components/PlayerPanel.jsx
 import React, { useState } from "react";
-import { usePlayers } from "../context/playersContext";
+import { usePlayers } from "../context/playersStore";
 
 /**
  * Alta y selección de jugador (solo con el nombre). El jugador activo es a

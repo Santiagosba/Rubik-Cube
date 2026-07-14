@@ -1,6 +1,6 @@
 // src/components/CubeTimer.jsx
 import React, { useEffect, useState } from "react";
-import { usePlayers, formatTime } from "../context/playersContext";
+import { usePlayers, formatTime } from "../context/playersStore";
 
 export default function CubeTimer() {
   const { currentPlayer, recordTime } = usePlayers();

@@ -1,4 +1,4 @@
-// src/context/playersContext.js
+// src/context/playersStore.js
 // Contexto, hook y helpers (sin componentes) para el sistema de jugadores.
 import { createContext, useContext } from "react";
 

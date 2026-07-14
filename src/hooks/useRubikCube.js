@@ -77,7 +77,7 @@ export default function useRubikCube() {
       const mat = new THREE.MeshPhysicalMaterial({
         color,
         emissive: color,
-        emissiveIntensity: 0.35,
+        emissiveIntensity: 0.18,
         metalness: 0.05,
         roughness: 0.35,
         clearcoat: 1,
@@ -122,9 +122,8 @@ export default function useRubikCube() {
     if (!currentMount) return;
 
     const scene = new THREE.Scene();
-    // Sin fondo propio: el canvas es transparente y deja ver el degradado de
-    // la app, lo que hace que el cubo se vea más luminoso.
-    scene.background = null;
+    // Fondo blanco para la escena del cubo.
+    scene.background = new THREE.Color(0xffffff);
 
     const camera = new THREE.PerspectiveCamera(
       75,

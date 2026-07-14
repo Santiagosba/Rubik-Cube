@@ -5,7 +5,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { PlayersContext } from "./playersContext";
+import { PlayersContext } from "./playersStore";
 
 const STORAGE_KEY = "rubik_players_v1";
 const CURRENT_KEY = "rubik_current_player_v1";

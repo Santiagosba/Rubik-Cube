@@ -1,6 +1,6 @@
 // src/components/Leaderboard.jsx
 import React from "react";
-import { usePlayers, formatTime } from "../context/playersContext";
+import { usePlayers, formatTime } from "../context/playersStore";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 

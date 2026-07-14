@@ -10,6 +10,7 @@ const mobileStyle = {
   boxShadow: "0 0 30px #0055ff",
   cursor: "grab",
   touchAction: "none",
+  overflow: "hidden",
 };
 
 const desktopStyle = {
@@ -19,6 +20,7 @@ const desktopStyle = {
   borderRadius: "16px",
   boxShadow: "0 0 25px #0055ff",
   cursor: "grab",
+  overflow: "hidden",
 };
 
 /**
