@@ -37,7 +37,10 @@ export default function CubeActionBar({
         </div>
 
         <div className="mobile-status">
-          <div className="last-move-mobile">{lastMove || "—"}</div>
+          <div className="last-move-mobile">
+            <span className="last-move-label">Último</span>
+            {lastMove || "—"}
+          </div>
           <div className="drag-hint">✋ Arrastra el cubo para girar la vista</div>
         </div>
       </>
