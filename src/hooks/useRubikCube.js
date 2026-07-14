@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from "react";
 import * as THREE from "three";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 
 // Tamaño de cada cubelet y separación entre ellos.
 const SIZE = 1;
@@ -44,16 +45,19 @@ export default function useRubikCube() {
     cubelets.current = [];
     const cubeGeometry = new THREE.BoxGeometry(SIZE, SIZE, SIZE);
 
-    // Cuerpo del cubelet: plástico oscuro semi-brillante para que las caras
-    // de colores resalten por encima (antes era vidrio translúcido y apagaba
-    // los colores contra el fondo).
+    // Cuerpo del cubelet: cristal transparente que refracta y refleja el
+    // entorno (efecto vidrio/RTX).
     const baseMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0x2a2a38,
-      metalness: 0.15,
-      roughness: 0.4,
+      color: 0xffffff,
+      metalness: 0,
+      roughness: 0,
+      transmission: 1,
+      ior: 1.52,
+      thickness: 0.6,
+      transparent: true,
       clearcoat: 1,
-      clearcoatRoughness: 0.15,
-      reflectivity: 0.5,
+      clearcoatRoughness: 0,
+      envMapIntensity: 1.6,
       side: THREE.DoubleSide,
     });
 
@@ -72,18 +76,23 @@ export default function useRubikCube() {
     function createFace(color, pos, rot) {
       const separation = 0.051;
       const adjustedPos = pos.map((v) => v * (SIZE / 2 + separation));
-      // Material opaco con emisión propia: los colores se ven brillantes y
-      // vivos aunque la iluminación de la escena sea tenue.
+      // Caras de cristal de color: transmiten la luz y, gracias a la
+      // absorción (attenuation), conservan un color rico tipo gema. El
+      // clearcoat y el envMap dan los reflejos "RTX".
       const mat = new THREE.MeshPhysicalMaterial({
         color,
-        emissive: color,
-        emissiveIntensity: 0.18,
-        metalness: 0.05,
-        roughness: 0.35,
+        metalness: 0,
+        roughness: 0.02,
+        transmission: 1,
+        ior: 1.45,
+        thickness: 1.3,
+        attenuationColor: new THREE.Color(color),
+        attenuationDistance: 0.22,
         clearcoat: 1,
-        clearcoatRoughness: 0.12,
+        clearcoatRoughness: 0,
+        transparent: true,
+        envMapIntensity: 1.6,
         side: THREE.DoubleSide,
-        reflectivity: 0.5,
       });
       const mesh = new THREE.Mesh(planeGeo, mat);
       mesh.position.set(...adjustedPos);
@@ -137,7 +146,16 @@ export default function useRubikCube() {
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(currentMount.clientWidth, currentMount.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // Tone mapping físico para reflejos/altas luces realistas
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
     currentMount.appendChild(renderer.domElement);
+
+    // Entorno de reflexión (estudio) para que el cristal refleje la luz.
+    // scene.environment se aplica automáticamente a los materiales físicos.
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environment = envMap;
 
     // Controles de cámara personalizados
     let isMouseDown = false;
@@ -330,6 +348,8 @@ export default function useRubikCube() {
       if (currentMount && renderer.domElement) {
         currentMount.removeChild(renderer.domElement);
       }
+      envMap.dispose();
+      pmrem.dispose();
       renderer.dispose();
     };
   }, []);
