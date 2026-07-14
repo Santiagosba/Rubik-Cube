@@ -22,7 +22,11 @@ export default function useRubikCube() {
 
   const [isRotating, setIsRotating] = useState(true);
   const [lastMove, setLastMove] = useState(null);
-  const [isMobile, setIsMobile] = useState(false);
+  // Se inicializa de forma síncrona para renderizar el layout correcto desde
+  // el primer render y evitar que el canvas nazca con tamaño de escritorio.
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.innerWidth <= 768
+  );
 
   // Detectar si es móvil
   useEffect(() => {
@@ -40,46 +44,46 @@ export default function useRubikCube() {
     cubelets.current = [];
     const cubeGeometry = new THREE.BoxGeometry(SIZE, SIZE, SIZE);
 
+    // Cuerpo del cubelet: plástico oscuro semi-brillante para que las caras
+    // de colores resalten por encima (antes era vidrio translúcido y apagaba
+    // los colores contra el fondo).
     const baseMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0xffffff,
-      metalness: 0,
-      roughness: 0,
-      transmission: 0.9,
-      thickness: 0.8,
-      transparent: true,
-      opacity: 0.9,
+      color: 0x0b0b12,
+      metalness: 0.2,
+      roughness: 0.35,
       clearcoat: 1,
-      clearcoatRoughness: 0,
-      reflectivity: 0.8,
+      clearcoatRoughness: 0.1,
+      reflectivity: 0.6,
       side: THREE.DoubleSide,
     });
 
     const planeGeo = new THREE.PlaneGeometry(SIZE, SIZE);
 
+    // Paleta viva y luminosa (azul y naranja más claros que los originales).
     const colors = {
-      U: 0xffff00,
-      D: 0xffffff,
-      F: 0xff0000,
-      B: 0xff8000,
-      L: 0x0000ff,
-      R: 0x00ff00,
+      U: 0xffd500, // amarillo
+      D: 0xffffff, // blanco
+      F: 0xff1e1e, // rojo
+      B: 0xff6a00, // naranja
+      L: 0x2a6bff, // azul
+      R: 0x00d13a, // verde
     };
 
     function createFace(color, pos, rot) {
       const separation = 0.051;
       const adjustedPos = pos.map((v) => v * (SIZE / 2 + separation));
+      // Material opaco con emisión propia: los colores se ven brillantes y
+      // vivos aunque la iluminación de la escena sea tenue.
       const mat = new THREE.MeshPhysicalMaterial({
         color,
-        metalness: 0.5,
-        roughness: 0.1,
-        transmission: 0.5,
-        thickness: 0.5,
+        emissive: color,
+        emissiveIntensity: 0.45,
+        metalness: 0.1,
+        roughness: 0.3,
         clearcoat: 1,
-        clearcoatRoughness: 0,
-        transparent: true,
-        opacity: 0.95,
+        clearcoatRoughness: 0.1,
         side: THREE.DoubleSide,
-        reflectivity: 0.8,
+        reflectivity: 0.6,
       });
       const mesh = new THREE.Mesh(planeGeo, mat);
       mesh.position.set(...adjustedPos);
@@ -118,7 +122,9 @@ export default function useRubikCube() {
     if (!currentMount) return;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x111111);
+    // Sin fondo propio: el canvas es transparente y deja ver el degradado de
+    // la app, lo que hace que el cubo se vea más luminoso.
+    scene.background = null;
 
     const camera = new THREE.PerspectiveCamera(
       75,
@@ -235,7 +241,7 @@ export default function useRubikCube() {
     scene.add(pointLight3);
 
     // Luz ambiental para visibilidad
-    const ambientLight = new THREE.AmbientLight(0x404040, 1.2);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
     scene.add(ambientLight);
 
     // Luz direccional principal
@@ -262,12 +268,20 @@ export default function useRubikCube() {
     animate();
 
     function onResize() {
-      camera.aspect = currentMount.clientWidth / currentMount.clientHeight;
+      const w = currentMount.clientWidth;
+      const h = currentMount.clientHeight;
+      if (!w || !h) return;
+      camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      renderer.setSize(currentMount.clientWidth, currentMount.clientHeight);
+      renderer.setSize(w, h);
     }
 
     window.addEventListener("resize", onResize);
+
+    // Mantener el renderer sincronizado con el tamaño real del contenedor,
+    // incluido el cambio de layout escritorio <-> móvil.
+    const resizeObserver = new ResizeObserver(onResize);
+    resizeObserver.observe(currentMount);
 
     // Teclado para control de rotaciones
     function handleKeyDown(e) {
@@ -294,6 +308,7 @@ export default function useRubikCube() {
     return () => {
       window.removeEventListener("resize", onResize);
       window.removeEventListener("keydown", handleKeyDown);
+      resizeObserver.disconnect();
 
       // Limpiar event listeners
       renderer.domElement.removeEventListener("mousedown", handleMouseDown);

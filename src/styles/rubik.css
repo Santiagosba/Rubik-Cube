@@ -152,6 +152,14 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
+.drag-hint {
+  margin-top: 10px;
+  color: #7fbfff;
+  font-size: 13px;
+  font-family: 'Segoe UI', sans-serif;
+  opacity: 0.85;
+}
+
 .main-buttons {
   display: flex;
   flex-wrap: wrap;
@@ -283,7 +291,39 @@
 
 .controls-container.mobile {
   max-width: 100%;
-  gap: 20px;
+  gap: 16px;
+}
+
+/* Pestañas de eje (solo móvil) para elegir X / Y / Z sin scroll largo. */
+.axis-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 4px 0;
+}
+
+.axis-tab {
+  padding: 14px 8px;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 255, 255, 0.25);
+  background: rgba(0, 255, 255, 0.06);
+  backdrop-filter: blur(15px);
+  color: #ccffff;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.axis-tab.active {
+  background: rgba(0, 255, 255, 0.22);
+  border-color: rgba(0, 255, 255, 0.6);
+  color: #00ffff;
+  text-shadow: 0 0 12px #00ffff;
+  box-shadow: 0 6px 20px rgba(0, 255, 255, 0.25);
 }
 
 .axis-section {
@@ -420,10 +460,21 @@
     background: rgba(0, 255, 255, 0.08);
     border: 1px solid rgba(0, 255, 255, 0.25);
     backdrop-filter: blur(15px);
-    font-size: 12px;
-    padding: 15px 10px;
-    min-height: 50px;
+    font-size: 15px;
+    padding: 20px 12px;
+    min-height: 64px;
     color: #ccffff;
+  }
+
+  .button-group {
+    gap: 12px;
+  }
+
+  .compact-button {
+    min-height: 52px;
+    min-width: 104px;
+    font-size: 15px;
+    padding: 14px 22px;
   }
 
   .glass-button:active {
@@ -437,14 +488,19 @@
 
 @media (max-width: 480px) {
   .glass-button {
-    font-size: 11px;
-    padding: 12px 8px;
-    min-height: 45px;
+    font-size: 14px;
+    padding: 18px 10px;
+    min-height: 58px;
   }
 
   .compact-button {
-    font-size: 12px;
-    padding: 10px 15px;
-    min-width: 75px;
+    font-size: 14px;
+    padding: 13px 16px;
+    min-width: 96px;
+  }
+
+  .axis-tab {
+    font-size: 14px;
+    padding: 13px 6px;
   }
 }

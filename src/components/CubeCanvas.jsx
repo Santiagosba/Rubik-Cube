@@ -3,12 +3,13 @@ import React from "react";
 
 const mobileStyle = {
   width: "100%",
-  height: "280px",
-  maxWidth: "380px",
+  height: "min(72vw, 340px)",
+  maxWidth: "420px",
   margin: "0 auto",
-  borderRadius: "15px",
+  borderRadius: "18px",
   boxShadow: "0 0 30px #0055ff",
   cursor: "grab",
+  touchAction: "none",
 };
 
 const desktopStyle = {
