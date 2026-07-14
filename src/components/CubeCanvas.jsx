@@ -3,7 +3,7 @@ import React from "react";
 
 const mobileStyle = {
   width: "100%",
-  height: "min(72vw, 340px)",
+  height: "min(52vw, 230px)",
   maxWidth: "420px",
   margin: "0 auto",
   borderRadius: "18px",

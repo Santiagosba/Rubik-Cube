@@ -10,7 +10,8 @@
     #2c5364 100%);
   border-radius: 24px;
   position: relative;
-  overflow: hidden;
+  /* overflow visible para no romper el sticky del cubo en móvil */
+  overflow: visible;
 }
 
 .rubik-container::before {
@@ -40,15 +41,17 @@
 
 .mobile-cube-section {
   flex-shrink: 0;
-  padding: 16px 14px 20px;
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(25px);
-  border-bottom: 2px solid rgba(0, 255, 255, 0.3);
-  box-shadow:
-    0 8px 32px rgba(0, 85, 255, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+  padding: 12px 14px 16px;
+  /* Fondo opaco: al quedar fija arriba, oculta los controles que pasan
+     por detrás al hacer scroll. */
+  background: #0c0e1c;
+  border-bottom: 2px solid rgba(0, 255, 255, 0.35);
+  box-shadow: 0 10px 28px rgba(0, 85, 255, 0.28);
   border-radius: 24px 24px 0 0;
+  /* El cubo queda pegado arriba para verlo mientras se usan los controles. */
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }
 
 .mobile-controls-section {
@@ -477,20 +480,34 @@
     background: rgba(0, 255, 255, 0.08);
     border: 1px solid rgba(0, 255, 255, 0.25);
     backdrop-filter: blur(15px);
-    font-size: 15px;
-    padding: 20px 12px;
-    min-height: 64px;
+    font-size: 14px;
+    padding: 15px 10px;
+    min-height: 54px;
     color: #ccffff;
   }
 
   .button-group {
-    gap: 12px;
+    gap: 10px;
   }
 
   .compact-button {
-    min-height: 52px;
+    min-height: 48px;
     font-size: 14px;
-    padding: 14px 6px;
+    padding: 12px 6px;
+  }
+
+  /* El cubo va fijo arriba, así que la pista de arrastre ya no hace falta
+     y se oculta para dejar sitio a los controles. */
+  .drag-hint {
+    display: none;
+  }
+
+  .mobile-status {
+    margin-top: 10px;
+  }
+
+  .mobile-main-buttons {
+    margin: 12px 0 10px 0;
   }
 
   .glass-button:active {
