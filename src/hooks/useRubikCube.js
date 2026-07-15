@@ -1,10 +1,28 @@
 import { useRef, useEffect, useState } from "react";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 // Tamaño de cada cubelet y separación entre ellos.
 const SIZE = 1;
 const OFFSET = 1.05;
+
+// Crea una textura de degradado vertical para usar como fondo de la escena.
+function makeGradientBackground() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 16;
+  canvas.height = 256;
+  const ctx = canvas.getContext("2d");
+  const grad = ctx.createLinearGradient(0, 0, 0, 256);
+  grad.addColorStop(0, "#9aa6ba"); // arriba: gris azulado medio-claro
+  grad.addColorStop(0.55, "#727f95");
+  grad.addColorStop(1, "#4c5872"); // abajo: azul pizarra
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 16, 256);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
 
 /**
  * Encapsula toda la lógica de Three.js y la manipulación del cubo de Rubik:
@@ -17,11 +35,13 @@ export default function useRubikCube() {
   const mountRef = useRef(null);
   const cubeGroupRef = useRef(null);
   const isDragging = useRef(false);
-  const animationActive = useRef(true);
+  // Rotación automática apagada por defecto: con orbit libre el cubo se
+  // inspecciona mejor quieto (se puede reactivar con el botón).
+  const animationActive = useRef(false);
   const cubelets = useRef([]);
   const rotating = useRef(false);
 
-  const [isRotating, setIsRotating] = useState(true);
+  const [isRotating, setIsRotating] = useState(false);
   const [lastMove, setLastMove] = useState(null);
   // Se inicializa de forma síncrona para renderizar el layout correcto desde
   // el primer render y evitar que el canvas nazca con tamaño de escritorio.
@@ -82,16 +102,18 @@ export default function useRubikCube() {
       const mat = new THREE.MeshPhysicalMaterial({
         color,
         metalness: 0,
-        roughness: 0.02,
-        transmission: 1,
+        roughness: 0.05,
+        // Transmisión parcial: mantiene el aspecto de cristal pero conserva
+        // el color de la cara para que siempre se vea bien.
+        transmission: 0.5,
         ior: 1.45,
-        thickness: 1.3,
+        thickness: 0.8,
         attenuationColor: new THREE.Color(color),
-        attenuationDistance: 0.22,
+        attenuationDistance: 0.5,
         clearcoat: 1,
-        clearcoatRoughness: 0,
+        clearcoatRoughness: 0.02,
         transparent: true,
-        envMapIntensity: 1.6,
+        envMapIntensity: 1.4,
         side: THREE.DoubleSide,
       });
       const mesh = new THREE.Mesh(planeGeo, mat);
@@ -131,8 +153,9 @@ export default function useRubikCube() {
     if (!currentMount) return;
 
     const scene = new THREE.Scene();
-    // Fondo blanco para la escena del cubo.
-    scene.background = new THREE.Color(0xffffff);
+    // Fondo con degradado de estudio: da buen contraste a todas las caras
+    // (claras y oscuras) y luce bien con el material de cristal.
+    scene.background = makeGradientBackground();
 
     const camera = new THREE.PerspectiveCamera(
       75,
@@ -157,86 +180,26 @@ export default function useRubikCube() {
     const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     scene.environment = envMap;
 
-    // Controles de cámara personalizados
-    let isMouseDown = false;
-    let mouseX = 0;
-    let mouseY = 0;
-    let cameraRotationX = 0.3;
-    let cameraRotationY = 0.8;
-
-    const updateCameraPosition = () => {
-      const radius = 7;
-      camera.position.x =
-        radius * Math.cos(cameraRotationX) * Math.sin(cameraRotationY);
-      camera.position.y = radius * Math.sin(cameraRotationX);
-      camera.position.z =
-        radius * Math.cos(cameraRotationX) * Math.cos(cameraRotationY);
-      camera.lookAt(0, 0, 0);
-    };
-
-    const handleMouseDown = (event) => {
-      isMouseDown = true;
+    // OrbitControls: rotación libre (sin límite vertical), zoom con rueda y
+    // pellizco en móvil, con inercia suave.
+    camera.position.set(4.5, 4, 6);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.09;
+    controls.enablePan = false;
+    controls.rotateSpeed = 0.9;
+    controls.zoomSpeed = 0.9;
+    controls.minDistance = 3.5;
+    controls.maxDistance = 16;
+    controls.target.set(0, 0, 0);
+    // Pausar la rotación automática mientras el usuario interactúa.
+    controls.addEventListener("start", () => {
       isDragging.current = true;
-      mouseX = event.clientX || (event.touches && event.touches[0].clientX);
-      mouseY = event.clientY || (event.touches && event.touches[0].clientY);
-    };
-
-    const handleMouseMove = (event) => {
-      if (!isMouseDown) return;
-      event.preventDefault();
-
-      const clientX =
-        event.clientX || (event.touches && event.touches[0].clientX);
-      const clientY =
-        event.clientY || (event.touches && event.touches[0].clientY);
-
-      const deltaX = clientX - mouseX;
-      const deltaY = clientY - mouseY;
-
-      cameraRotationY += deltaX * 0.008;
-      cameraRotationX += deltaY * 0.008;
-
-      // Limitar rotación vertical
-      cameraRotationX = Math.max(
-        -Math.PI / 2.5,
-        Math.min(Math.PI / 2.5, cameraRotationX)
-      );
-
-      updateCameraPosition();
-
-      mouseX = clientX;
-      mouseY = clientY;
-    };
-
-    const handleMouseUp = () => {
-      isMouseDown = false;
+    });
+    controls.addEventListener("end", () => {
       isDragging.current = false;
-    };
-
-    const handleWheel = (event) => {
-      event.preventDefault();
-      const radius = camera.position.length();
-      const newRadius = Math.max(3, Math.min(12, radius + event.deltaY * 0.01));
-      camera.position.normalize().multiplyScalar(newRadius);
-    };
-
-    // Event listeners para mouse
-    renderer.domElement.addEventListener("mousedown", handleMouseDown);
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-    renderer.domElement.addEventListener("wheel", handleWheel, {
-      passive: false,
     });
-
-    // Event listeners para touch
-    renderer.domElement.addEventListener("touchstart", handleMouseDown, {
-      passive: false,
-    });
-    document.addEventListener("touchmove", handleMouseMove, { passive: false });
-    document.addEventListener("touchend", handleMouseUp);
-
-    // Inicializar posición de cámara
-    updateCameraPosition();
+    controls.update();
 
     const cubeGroup = new THREE.Group();
     cubeGroupRef.current = cubeGroup;
@@ -289,6 +252,7 @@ export default function useRubikCube() {
         cubeGroup.rotation.y += speed * delta;
       }
 
+      controls.update();
       renderer.render(scene, camera);
     }
     animate();
@@ -336,14 +300,7 @@ export default function useRubikCube() {
       window.removeEventListener("keydown", handleKeyDown);
       resizeObserver.disconnect();
 
-      // Limpiar event listeners
-      renderer.domElement.removeEventListener("mousedown", handleMouseDown);
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-      renderer.domElement.removeEventListener("wheel", handleWheel);
-      renderer.domElement.removeEventListener("touchstart", handleMouseDown);
-      document.removeEventListener("touchmove", handleMouseMove);
-      document.removeEventListener("touchend", handleMouseUp);
+      controls.dispose();
 
       if (currentMount && renderer.domElement) {
         currentMount.removeChild(renderer.domElement);
