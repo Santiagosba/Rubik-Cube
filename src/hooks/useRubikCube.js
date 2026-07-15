@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from "react";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { TrackballControls } from "three/examples/jsm/controls/TrackballControls.js";
 
 // Tamaño de cada cubelet y separación entre ellos.
 const SIZE = 1;
@@ -180,18 +180,20 @@ export default function useRubikCube() {
     const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     scene.environment = envMap;
 
-    // OrbitControls: rotación libre (sin límite vertical), zoom con rueda y
-    // pellizco en móvil, con inercia suave.
+    // TrackballControls: rotación totalmente libre en cualquier dirección
+    // (sin bloqueo en los polos, se puede voltear infinitamente en vertical),
+    // con zoom por rueda y pellizco en móvil.
     camera.position.set(4.5, 4, 6);
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.09;
-    controls.enablePan = false;
-    controls.rotateSpeed = 0.9;
-    controls.zoomSpeed = 0.9;
+    const controls = new TrackballControls(camera, renderer.domElement);
+    controls.rotateSpeed = 3.5;
+    controls.zoomSpeed = 1.2;
+    controls.noPan = true;
+    controls.staticMoving = false;
+    controls.dynamicDampingFactor = 0.12;
     controls.minDistance = 3.5;
     controls.maxDistance = 16;
     controls.target.set(0, 0, 0);
+    controls.handleResize();
     // Pausar la rotación automática mientras el usuario interactúa.
     controls.addEventListener("start", () => {
       isDragging.current = true;
@@ -264,6 +266,8 @@ export default function useRubikCube() {
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
+      // TrackballControls usa coordenadas de pantalla: hay que recalcularlas.
+      controls.handleResize();
     }
 
     window.addEventListener("resize", onResize);
@@ -272,6 +276,11 @@ export default function useRubikCube() {
     // incluido el cambio de layout escritorio <-> móvil.
     const resizeObserver = new ResizeObserver(onResize);
     resizeObserver.observe(currentMount);
+
+    // Al hacer scroll, el cubo (sticky en móvil) cambia de posición en
+    // pantalla; recalcular las coordenadas para que la rotación sea precisa.
+    const onScroll = () => controls.handleResize();
+    window.addEventListener("scroll", onScroll, { passive: true });
 
     // Teclado para control de rotaciones
     function handleKeyDown(e) {
@@ -298,6 +307,7 @@ export default function useRubikCube() {
     return () => {
       window.removeEventListener("resize", onResize);
       window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("scroll", onScroll);
       resizeObserver.disconnect();
 
       controls.dispose();
