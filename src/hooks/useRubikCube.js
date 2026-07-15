@@ -7,6 +7,25 @@ import { TrackballControls } from "three/examples/jsm/controls/TrackballControls
 const SIZE = 1;
 const OFFSET = 1.05;
 
+// Fondo con degradado oscuro (casi negro): el cristal necesita algo que
+// refractar/reflejar, pero mantiene la escena oscura para que resalten los
+// colores.
+function makeDarkBackground() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 16;
+  canvas.height = 256;
+  const ctx = canvas.getContext("2d");
+  const grad = ctx.createLinearGradient(0, 0, 0, 256);
+  grad.addColorStop(0, "#20242f"); // arriba: gris azulado muy oscuro
+  grad.addColorStop(0.6, "#111318");
+  grad.addColorStop(1, "#050507"); // abajo: casi negro
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 16, 256);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 /**
  * Encapsula toda la lógica de Three.js y la manipulación del cubo de Rubik:
  * creación de la escena, controles de cámara, giros de capas, mezcla y reset.
@@ -50,13 +69,21 @@ export default function useRubikCube() {
 
     // Cuerpo del cubelet: cristal transparente que refracta y refleja el
     // entorno (efecto vidrio/RTX).
+    // Cuerpo: vidrio transparente de alta calidad (refracta y refleja el
+    // entorno).
     const baseMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0x0a0a10,
-      metalness: 0.1,
-      roughness: 0.25,
+      color: 0xffffff,
+      metalness: 0,
+      roughness: 0,
+      transmission: 1,
+      ior: 1.5,
+      thickness: 0.7,
+      transparent: true,
       clearcoat: 1,
-      clearcoatRoughness: 0.1,
-      envMapIntensity: 0.6,
+      clearcoatRoughness: 0,
+      specularIntensity: 1,
+      envMapIntensity: 1.6,
+      dispersion: 2,
       side: THREE.DoubleSide,
     });
 
@@ -78,18 +105,27 @@ export default function useRubikCube() {
       // Caras de cristal de color: transmiten la luz y, gracias a la
       // absorción (attenuation), conservan un color rico tipo gema. El
       // clearcoat y el envMap dan los reflejos "RTX".
-      // Caras opacas, brillantes y de color intenso (glossy) para que
-      // resalten sobre el fondo negro sin verse lavadas. El clearcoat y un
-      // toque de reflejo del entorno dan el acabado tipo cristal pulido.
+      // Caras: cristal de color de alta calidad. La transmisión + absorción
+      // (attenuation) dan color de gema; la dispersión añade el destello
+      // cromático "RTX" en los bordes; el clearcoat y el envMap dan reflejos
+      // nítidos. Un toque de emisión evita que el color se apague en oscuro.
       const mat = new THREE.MeshPhysicalMaterial({
         color,
         metalness: 0,
-        roughness: 0.18,
+        roughness: 0.03,
+        transmission: 1,
+        ior: 1.5,
+        thickness: 1.4,
+        attenuationColor: new THREE.Color(color),
+        attenuationDistance: 0.35,
         emissive: new THREE.Color(color),
-        emissiveIntensity: 0.12,
+        emissiveIntensity: 0.22,
         clearcoat: 1,
-        clearcoatRoughness: 0.08,
-        envMapIntensity: 0.35,
+        clearcoatRoughness: 0.03,
+        specularIntensity: 1,
+        envMapIntensity: 1.6,
+        dispersion: 3.5,
+        transparent: true,
         side: THREE.DoubleSide,
       });
       const mesh = new THREE.Mesh(planeGeo, mat);
@@ -129,8 +165,9 @@ export default function useRubikCube() {
     if (!currentMount) return;
 
     const scene = new THREE.Scene();
-    // Fondo negro para que las caras de color resalten al máximo.
-    scene.background = new THREE.Color(0x000000);
+    // Fondo oscuro con degradado para que el cristal tenga contexto que
+    // refractar/reflejar sin perder el aspecto oscuro.
+    scene.background = makeDarkBackground();
 
     const camera = new THREE.PerspectiveCamera(
       75,
@@ -144,9 +181,10 @@ export default function useRubikCube() {
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(currentMount.clientWidth, currentMount.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    // Sin tone mapping para que los colores se vean vivos y saturados
-    // (ACES lavaba/desaturaba las caras).
-    renderer.toneMapping = THREE.NoToneMapping;
+    // Neutral tone mapping (pensado para visualización de producto): da un
+    // resultado realista sin lavar/desaturar los colores del cristal.
+    renderer.toneMapping = THREE.NeutralToneMapping;
+    renderer.toneMappingExposure = 1.15;
     currentMount.appendChild(renderer.domElement);
 
     // Entorno de reflexión (estudio) para que el cristal refleje la luz.
