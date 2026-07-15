@@ -14,9 +14,9 @@ function makeGradientBackground() {
   canvas.height = 256;
   const ctx = canvas.getContext("2d");
   const grad = ctx.createLinearGradient(0, 0, 0, 256);
-  grad.addColorStop(0, "#9aa6ba"); // arriba: gris azulado medio-claro
-  grad.addColorStop(0.55, "#727f95");
-  grad.addColorStop(1, "#4c5872"); // abajo: azul pizarra
+  grad.addColorStop(0, "#5c667d"); // arriba: azul pizarra medio
+  grad.addColorStop(0.55, "#3f475d");
+  grad.addColorStop(1, "#282e42"); // abajo: azul noche
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, 16, 256);
   const texture = new THREE.CanvasTexture(canvas);
