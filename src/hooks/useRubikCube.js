@@ -7,23 +7,6 @@ import { TrackballControls } from "three/examples/jsm/controls/TrackballControls
 const SIZE = 1;
 const OFFSET = 1.05;
 
-// Crea una textura de degradado vertical para usar como fondo de la escena.
-function makeGradientBackground() {
-  const canvas = document.createElement("canvas");
-  canvas.width = 16;
-  canvas.height = 256;
-  const ctx = canvas.getContext("2d");
-  const grad = ctx.createLinearGradient(0, 0, 0, 256);
-  grad.addColorStop(0, "#5c667d"); // arriba: azul pizarra medio
-  grad.addColorStop(0.55, "#3f475d");
-  grad.addColorStop(1, "#282e42"); // abajo: azul noche
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 16, 256);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-}
-
 /**
  * Encapsula toda la lógica de Three.js y la manipulación del cubo de Rubik:
  * creación de la escena, controles de cámara, giros de capas, mezcla y reset.
@@ -68,16 +51,12 @@ export default function useRubikCube() {
     // Cuerpo del cubelet: cristal transparente que refracta y refleja el
     // entorno (efecto vidrio/RTX).
     const baseMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0xffffff,
-      metalness: 0,
-      roughness: 0,
-      transmission: 1,
-      ior: 1.52,
-      thickness: 0.6,
-      transparent: true,
+      color: 0x0a0a10,
+      metalness: 0.1,
+      roughness: 0.25,
       clearcoat: 1,
-      clearcoatRoughness: 0,
-      envMapIntensity: 1.6,
+      clearcoatRoughness: 0.1,
+      envMapIntensity: 0.6,
       side: THREE.DoubleSide,
     });
 
@@ -99,21 +78,18 @@ export default function useRubikCube() {
       // Caras de cristal de color: transmiten la luz y, gracias a la
       // absorción (attenuation), conservan un color rico tipo gema. El
       // clearcoat y el envMap dan los reflejos "RTX".
+      // Caras opacas, brillantes y de color intenso (glossy) para que
+      // resalten sobre el fondo negro sin verse lavadas. El clearcoat y un
+      // toque de reflejo del entorno dan el acabado tipo cristal pulido.
       const mat = new THREE.MeshPhysicalMaterial({
         color,
         metalness: 0,
-        roughness: 0.05,
-        // Transmisión parcial: mantiene el aspecto de cristal pero conserva
-        // el color de la cara para que siempre se vea bien.
-        transmission: 0.5,
-        ior: 1.45,
-        thickness: 0.8,
-        attenuationColor: new THREE.Color(color),
-        attenuationDistance: 0.5,
+        roughness: 0.18,
+        emissive: new THREE.Color(color),
+        emissiveIntensity: 0.12,
         clearcoat: 1,
-        clearcoatRoughness: 0.02,
-        transparent: true,
-        envMapIntensity: 1.4,
+        clearcoatRoughness: 0.08,
+        envMapIntensity: 0.35,
         side: THREE.DoubleSide,
       });
       const mesh = new THREE.Mesh(planeGeo, mat);
@@ -153,9 +129,8 @@ export default function useRubikCube() {
     if (!currentMount) return;
 
     const scene = new THREE.Scene();
-    // Fondo con degradado de estudio: da buen contraste a todas las caras
-    // (claras y oscuras) y luce bien con el material de cristal.
-    scene.background = makeGradientBackground();
+    // Fondo negro para que las caras de color resalten al máximo.
+    scene.background = new THREE.Color(0x000000);
 
     const camera = new THREE.PerspectiveCamera(
       75,
@@ -169,9 +144,9 @@ export default function useRubikCube() {
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(currentMount.clientWidth, currentMount.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    // Tone mapping físico para reflejos/altas luces realistas
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.15;
+    // Sin tone mapping para que los colores se vean vivos y saturados
+    // (ACES lavaba/desaturaba las caras).
+    renderer.toneMapping = THREE.NoToneMapping;
     currentMount.appendChild(renderer.domElement);
 
     // Entorno de reflexión (estudio) para que el cristal refleje la luz.
