@@ -7,6 +7,39 @@ import { TrackballControls } from "three/examples/jsm/controls/TrackballControls
 const SIZE = 1;
 const OFFSET = 1.05;
 
+// Paleta de las caras (viva y luminosa).
+const FACE_COLORS = {
+  U: 0xffd500, // amarillo (arriba,  +y)
+  D: 0xffffff, // blanco   (abajo,   -y)
+  F: 0xff1e1e, // rojo     (frente,  +z)
+  B: 0xff6a00, // naranja  (detrás,  -z)
+  L: 0x2a6bff, // azul     (izq,     -x)
+  R: 0x00d13a, // verde    (der,     +x)
+};
+
+// Color que debería mostrar cada dirección del cubo resuelto.
+const SOLVED_COLOR_BY_DIR = {
+  "1,0,0": FACE_COLORS.R,
+  "-1,0,0": FACE_COLORS.L,
+  "0,1,0": FACE_COLORS.U,
+  "0,-1,0": FACE_COLORS.D,
+  "0,0,1": FACE_COLORS.F,
+  "0,0,-1": FACE_COLORS.B,
+};
+
+// Etiqueta legible de un movimiento, p.ej. {x,1,1} -> "X+ ↻".
+export function moveLabel(move) {
+  if (!move) return "";
+  const sign = move.index === 1 ? "+" : move.index === -1 ? "-" : "0";
+  const arrow = move.direction === 1 ? "↻" : "↺";
+  return `${move.axis.toUpperCase()}${sign} ${arrow}`;
+}
+
+// ¿Son a y b movimientos inversos (misma capa, sentido opuesto)?
+function isInverse(a, b) {
+  return a.axis === b.axis && a.index === b.index && a.direction === -b.direction;
+}
+
 // Fondo con degradado oscuro (casi negro): el cristal necesita algo que
 // refractar/reflejar, pero mantiene la escena oscura para que resalten los
 // colores.
@@ -42,9 +75,17 @@ export default function useRubikCube() {
   const animationActive = useRef(false);
   const cubelets = useRef([]);
   const rotating = useRef(false);
+  // Pila de solución (movimientos que resuelven el cubo) para las pistas.
+  const solutionRef = useRef([]);
+  // ¿Se ha mezclado el cubo? (para mostrar la victoria solo tras jugar).
+  const everScrambledRef = useRef(false);
 
   const [isRotating, setIsRotating] = useState(false);
   const [lastMove, setLastMove] = useState(null);
+  const [progress, setProgress] = useState(100);
+  const [nextHint, setNextHint] = useState(null);
+  const [solved, setSolved] = useState(true);
+  const [everScrambled, setEverScrambled] = useState(false);
   // Se inicializa de forma síncrona para renderizar el layout correcto desde
   // el primer render y evitar que el canvas nazca con tamaño de escritorio.
   const [isMobile, setIsMobile] = useState(
@@ -89,15 +130,7 @@ export default function useRubikCube() {
 
     const planeGeo = new THREE.PlaneGeometry(SIZE, SIZE);
 
-    // Paleta viva y luminosa (azul y naranja más claros que los originales).
-    const colors = {
-      U: 0xffd500, // amarillo
-      D: 0xffffff, // blanco
-      F: 0xff1e1e, // rojo
-      B: 0xff6a00, // naranja
-      L: 0x2a6bff, // azul
-      R: 0x00d13a, // verde
-    };
+    const colors = FACE_COLORS;
 
     function createFace(color, pos, rot) {
       const separation = 0.051;
@@ -131,6 +164,9 @@ export default function useRubikCube() {
       const mesh = new THREE.Mesh(planeGeo, mat);
       mesh.position.set(...adjustedPos);
       mesh.rotation.set(...rot);
+      // Guardamos la dirección exterior y el color del sticker para calcular
+      // el progreso (qué fracción de stickers apunta a su cara correcta).
+      mesh.userData = { isSticker: true, dir: pos, color };
       return mesh;
     }
 
@@ -334,11 +370,56 @@ export default function useRubikCube() {
     };
   }, []);
 
+  // Progreso real: fracción de stickers que apuntan a su cara correcta.
+  const computeProgress = () => {
+    const v = new THREE.Vector3();
+    let total = 0;
+    let correct = 0;
+    cubelets.current.forEach((cube) => {
+      cube.children.forEach((child) => {
+        const d = child.userData;
+        if (!d || !d.isSticker) return;
+        total++;
+        v.set(d.dir[0], d.dir[1], d.dir[2]).applyQuaternion(cube.quaternion);
+        const key = `${Math.round(v.x)},${Math.round(v.y)},${Math.round(v.z)}`;
+        if (SOLVED_COLOR_BY_DIR[key] === d.color) correct++;
+      });
+    });
+    return total ? (correct / total) * 100 : 100;
+  };
+
+  // Actualiza la pila de solución al aplicar un movimiento (la solución es el
+  // inverso del historial) y refresca la siguiente pista.
+  const pushMove = (axis, index, direction) => {
+    const inv = { axis, index, direction: -direction };
+    const S = solutionRef.current;
+    solutionRef.current =
+      S.length && isInverse(inv, S[0]) ? S.slice(1) : [inv, ...S];
+    setNextHint(solutionRef.current[0] || null);
+  };
+
+  // Recalcula progreso y estado "resuelto" a partir del cubo 3D real.
+  const refreshProgress = () => {
+    const p = computeProgress();
+    setProgress(Math.round(p));
+    const isSolved = p >= 99.999;
+    setSolved(isSolved);
+    if (isSolved) {
+      setNextHint(null);
+    } else if (!everScrambledRef.current) {
+      // Cualquier movimiento que desordene el cubo cuenta como "jugado",
+      // para poder mostrar la victoria al volver a resolverlo.
+      everScrambledRef.current = true;
+      setEverScrambled(true);
+    }
+  };
+
   const rotateLayer = (axis, index, direction) => {
     if (rotating.current || !cubeGroupRef.current) return;
     rotating.current = true;
 
-    setLastMove(`${axis.toUpperCase()}${index} ${direction === 1 ? "↻" : "↺"}`);
+    setLastMove(moveLabel({ axis, index, direction }));
+    pushMove(axis, index, direction);
 
     const layer = cubelets.current.filter(
       (c) => Math.round(c.userData[axis]) === index
@@ -393,6 +474,7 @@ export default function useRubikCube() {
 
         cubeGroupRef.current.remove(group);
         rotating.current = false;
+        refreshProgress();
       }
     }
 
@@ -401,13 +483,16 @@ export default function useRubikCube() {
 
   const shuffle = (moves = 20) => {
     if (rotating.current) return;
+    everScrambledRef.current = true;
+    setEverScrambled(true);
     const axes = ["x", "y", "z"];
     let i = 0;
 
     function doMove() {
       if (i >= moves) return;
       const axis = axes[Math.floor(Math.random() * 3)];
-      const index = [-1, 0, 1][Math.floor(Math.random() * 3)];
+      // Solo giros de cara (±1), como una mezcla real (no capas centrales).
+      const index = Math.random() < 0.5 ? 1 : -1;
       const direction = Math.random() < 0.5 ? 1 : -1;
       rotateLayer(axis, index, direction);
       i++;
@@ -427,8 +512,14 @@ export default function useRubikCube() {
     cubelets.current = [];
     createCubelets();
 
+    solutionRef.current = [];
+    everScrambledRef.current = false;
+    setEverScrambled(false);
+    setNextHint(null);
+
     rotating.current = false;
     setLastMove("Reseteado");
+    refreshProgress();
   };
 
   const toggleRotation = () => {
@@ -441,6 +532,10 @@ export default function useRubikCube() {
     isRotating,
     lastMove,
     isMobile,
+    progress,
+    nextHint,
+    solved,
+    everScrambled,
     rotateLayer,
     shuffle,
     resetCube,

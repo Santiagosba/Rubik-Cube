@@ -1,3 +1,145 @@
+/* ===== Progreso del cubo ===== */
+.cube-progress {
+  margin: 12px auto 4px;
+  max-width: 420px;
+  width: 100%;
+}
+
+.cube-progress-track {
+  height: 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.cube-progress-fill {
+  height: 100%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #00aaff, #00ffcc);
+  transition: width 0.4s ease;
+  box-shadow: 0 0 12px rgba(0, 255, 204, 0.5);
+}
+
+.cube-progress-fill.done {
+  background: linear-gradient(90deg, #00ff99, #7CFC00);
+  box-shadow: 0 0 16px rgba(0, 255, 153, 0.7);
+}
+
+.cube-progress-label {
+  margin-top: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #cdefff;
+  font-family: 'Segoe UI', monospace;
+}
+
+/* ===== Barra de pista / victoria ===== */
+.hint-bar {
+  margin: 10px auto 0;
+  display: inline-block;
+  padding: 9px 20px;
+  border-radius: 20px;
+  font-size: 15px;
+  font-family: 'Segoe UI', sans-serif;
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  background: rgba(0, 255, 255, 0.08);
+  color: #d8f6ff;
+}
+
+.hint-bar b {
+  color: #00ffff;
+  font-family: 'Segoe UI', monospace;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.6);
+}
+
+.hint-bar.win {
+  border-color: rgba(0, 255, 153, 0.5);
+  background: rgba(0, 255, 153, 0.12);
+  color: #00ff99;
+  font-weight: 700;
+  text-shadow: 0 0 12px rgba(0, 255, 153, 0.5);
+}
+
+.hint-btn {
+  margin: 10px auto 0;
+  padding: 9px 22px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  background: rgba(255, 215, 0, 0.12);
+  color: #ffd700;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.hint-btn:hover {
+  background: rgba(255, 215, 0, 0.22);
+}
+
+/* ===== Selector de dificultad ===== */
+.difficulty-selector {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 8px auto 18px;
+  max-width: 480px;
+}
+
+.difficulty-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  color: #cdefff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex: 1 1 0;
+  min-width: 96px;
+}
+
+.difficulty-btn .difficulty-label {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.difficulty-btn .difficulty-desc {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.difficulty-btn.active {
+  border-color: rgba(0, 255, 255, 0.6);
+  background: rgba(0, 255, 255, 0.14);
+  color: #00ffff;
+  box-shadow: 0 4px 16px rgba(0, 255, 255, 0.22);
+}
+
+/* Resalte del botón/pestaña sugerido por la pista (modo fácil). */
+@keyframes hintPulse {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    border-color: rgba(255, 215, 0, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 22px rgba(255, 215, 0, 0.9);
+    border-color: rgba(255, 215, 0, 1);
+  }
+}
+
+.glass-button.hint,
+.axis-tab.hint {
+  border-color: rgba(255, 215, 0, 0.8) !important;
+  color: #ffe680 !important;
+  animation: hintPulse 1.1s ease-in-out infinite;
+}
+
 .rubik-container {
   text-align: center;
   padding: 10px;
@@ -500,6 +642,22 @@
      y se oculta para dejar sitio a los controles. */
   .drag-hint {
     display: none;
+  }
+
+  /* Barra de progreso y pista compactas en la cabecera fija. */
+  .cube-progress {
+    margin: 8px auto 2px;
+  }
+
+  .hint-bar,
+  .hint-btn {
+    margin-top: 8px;
+    font-size: 14px;
+    padding: 7px 16px;
+  }
+
+  .difficulty-selector {
+    margin: 12px auto 14px;
   }
 
   .mobile-status {

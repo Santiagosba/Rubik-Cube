@@ -1,5 +1,5 @@
 // src/components/CubeControls.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 // Definición de los botones por eje: cada entrada es [índice, dirección, etiqueta].
 const AXES = [
@@ -41,16 +41,27 @@ const AXES = [
   },
 ];
 
-function AxisButtons({ moves, axis, onRotate, isMobile }) {
+// ¿El botón (axis,index,dir) coincide con la pista?
+function isHinted(hintMove, axis, index, dir) {
+  return (
+    hintMove &&
+    hintMove.axis === axis &&
+    hintMove.index === index &&
+    hintMove.direction === dir
+  );
+}
+
+function AxisButtons({ moves, axis, onRotate, isMobile, hintMove }) {
   return (
     <div className="button-group">
       {moves.map(([index, dir, label]) => {
         const arrow = dir === 1 ? "↻" : "↺";
         const text = isMobile ? `${label} ${arrow}` : `Girar ${label} ${arrow}`;
+        const hinted = isHinted(hintMove, axis, index, dir);
         return (
           <button
             key={`${label}-${dir}`}
-            className="glass-button"
+            className={`glass-button ${hinted ? "hint" : ""}`}
             onClick={() => onRotate(axis, index, dir)}
           >
             {text}
@@ -65,25 +76,36 @@ function AxisButtons({ moves, axis, onRotate, isMobile }) {
  * Panel de botones para girar cada capa del cubo.
  *
  * En escritorio muestra los tres ejes lado a lado; en móvil usa pestañas para
- * mostrar un solo eje a la vez, con botones grandes y sin scroll interminable.
+ * mostrar un solo eje a la vez. Si hay pista (modo fácil) resalta el botón a
+ * pulsar y abre automáticamente su pestaña.
  */
-export default function CubeControls({ onRotate, isMobile }) {
+export default function CubeControls({ onRotate, isMobile, hintMove }) {
   const [activeAxis, setActiveAxis] = useState("x");
+
+  // En móvil, abrir la pestaña del eje sugerido por la pista.
+  useEffect(() => {
+    if (hintMove) setActiveAxis(hintMove.axis);
+  }, [hintMove]);
 
   if (isMobile) {
     const current = AXES.find((a) => a.axis === activeAxis) ?? AXES[0];
     return (
       <div className="controls-container mobile">
         <div className="axis-tabs">
-          {AXES.map((a) => (
-            <button
-              key={a.axis}
-              className={`axis-tab ${a.axis === activeAxis ? "active" : ""}`}
-              onClick={() => setActiveAxis(a.axis)}
-            >
-              {a.title}
-            </button>
-          ))}
+          {AXES.map((a) => {
+            const isHintAxis = hintMove && hintMove.axis === a.axis;
+            return (
+              <button
+                key={a.axis}
+                className={`axis-tab ${a.axis === activeAxis ? "active" : ""} ${
+                  isHintAxis ? "hint" : ""
+                }`}
+                onClick={() => setActiveAxis(a.axis)}
+              >
+                {a.title}
+              </button>
+            );
+          })}
         </div>
 
         <div className="axis-section">
@@ -92,6 +114,7 @@ export default function CubeControls({ onRotate, isMobile }) {
             axis={current.axis}
             onRotate={onRotate}
             isMobile
+            hintMove={hintMove}
           />
         </div>
       </div>
@@ -108,6 +131,7 @@ export default function CubeControls({ onRotate, isMobile }) {
             axis={axis}
             onRotate={onRotate}
             isMobile={false}
+            hintMove={hintMove}
           />
         </div>
       ))}
