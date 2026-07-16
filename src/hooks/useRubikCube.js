@@ -27,12 +27,123 @@ const SOLVED_COLOR_BY_DIR = {
   "0,0,-1": FACE_COLORS.B,
 };
 
-// Etiqueta legible de un movimiento, p.ej. {x,1,1} -> "X+ ↻".
-export function moveLabel(move) {
+// Signo de la capa según su índice de rejilla (0..N-1): borde superior "+",
+// inferior "-", y las intermedias "0".
+export function layerSign(index, N) {
+  if (index === N - 1) return "+";
+  if (index === 0) return "-";
+  return "0";
+}
+
+// Etiqueta legible de un movimiento, p.ej. "X+ ↻".
+export function moveLabel(move, N = 3) {
   if (!move) return "";
-  const sign = move.index === 1 ? "+" : move.index === -1 ? "-" : "0";
   const arrow = move.direction === 1 ? "↻" : "↺";
-  return `${move.axis.toUpperCase()}${sign} ${arrow}`;
+  return `${move.axis.toUpperCase()}${layerSign(move.index, N)} ${arrow}`;
+}
+
+// ===== Skins (materiales del cubo) =====
+// Cada skin devuelve el material del cuerpo y una fábrica de material de cara.
+export const SKINS = [
+  { id: "glass", label: "Cristal", emoji: "💎" },
+  { id: "classic", label: "Clásico", emoji: "🧱" },
+  { id: "neon", label: "Neón", emoji: "🌈" },
+  { id: "metal", label: "Metal", emoji: "⚙️" },
+];
+
+function makeSkinMaterials(skin) {
+  if (skin === "classic") {
+    return {
+      body: new THREE.MeshStandardMaterial({
+        color: 0x0b0b10,
+        roughness: 0.7,
+        metalness: 0,
+      }),
+      face: (c) =>
+        new THREE.MeshStandardMaterial({
+          color: c,
+          roughness: 0.4,
+          metalness: 0,
+          emissive: new THREE.Color(c),
+          emissiveIntensity: 0.05,
+          side: THREE.DoubleSide,
+        }),
+    };
+  }
+  if (skin === "neon") {
+    return {
+      body: new THREE.MeshStandardMaterial({
+        color: 0x050508,
+        roughness: 0.45,
+        metalness: 0.2,
+      }),
+      face: (c) =>
+        new THREE.MeshStandardMaterial({
+          color: 0x000000,
+          emissive: new THREE.Color(c),
+          emissiveIntensity: 1.1,
+          roughness: 0.4,
+          metalness: 0,
+          side: THREE.DoubleSide,
+        }),
+    };
+  }
+  if (skin === "metal") {
+    return {
+      body: new THREE.MeshStandardMaterial({
+        color: 0x15151b,
+        roughness: 0.3,
+        metalness: 1,
+        envMapIntensity: 1.2,
+      }),
+      face: (c) =>
+        new THREE.MeshStandardMaterial({
+          color: c,
+          roughness: 0.18,
+          metalness: 1,
+          envMapIntensity: 1.5,
+          side: THREE.DoubleSide,
+        }),
+    };
+  }
+  // glass (por defecto): cristal de alta calidad con dispersión (RTX).
+  return {
+    body: new THREE.MeshPhysicalMaterial({
+      color: 0xffffff,
+      metalness: 0,
+      roughness: 0,
+      transmission: 1,
+      ior: 1.5,
+      thickness: 0.7,
+      transparent: true,
+      clearcoat: 1,
+      clearcoatRoughness: 0,
+      specularIntensity: 1,
+      envMapIntensity: 1.6,
+      dispersion: 2,
+      side: THREE.DoubleSide,
+    }),
+    face: (c) =>
+      new THREE.MeshPhysicalMaterial({
+        color: c,
+        metalness: 0,
+        roughness: 0.03,
+        transmission: 1,
+        ior: 1.5,
+        thickness: 1.4,
+        attenuationColor: new THREE.Color(c),
+        attenuationDistance: 0.35,
+        emissive: new THREE.Color(c),
+        emissiveIntensity: 0.22,
+        clearcoat: 1,
+        clearcoatRoughness: 0.03,
+        specularIntensity: 1,
+        envMapIntensity: 1.6,
+        dispersion: 3.5,
+        transparent: true,
+        side: THREE.DoubleSide,
+      }),
+  };
 }
 
 // ¿Son a y b movimientos inversos (misma capa, sentido opuesto)?
@@ -79,6 +190,12 @@ export default function useRubikCube() {
   const solutionRef = useRef([]);
   // ¿Se ha mezclado el cubo? (para mostrar la victoria solo tras jugar).
   const everScrambledRef = useRef(false);
+  // Tamaño del cubo (N) y skin actuales (en refs para usarlos al crear).
+  const sizeRef = useRef(3);
+  const skinRef = useRef("glass");
+  const cameraRef = useRef(null);
+  const controlsRef = useRef(null);
+  const matsRef = useRef(null); // materiales compartidos del skin actual
 
   const [isRotating, setIsRotating] = useState(false);
   const [lastMove, setLastMove] = useState(null);
@@ -86,6 +203,8 @@ export default function useRubikCube() {
   const [nextHint, setNextHint] = useState(null);
   const [solved, setSolved] = useState(true);
   const [everScrambled, setEverScrambled] = useState(false);
+  const [cubeSize, setCubeSizeState] = useState(3);
+  const [skin, setSkinState] = useState("glass");
   // Se inicializa de forma síncrona para renderizar el layout correcto desde
   // el primer render y evitar que el canvas nazca con tamaño de escritorio.
   const [isMobile, setIsMobile] = useState(
@@ -104,64 +223,51 @@ export default function useRubikCube() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  // Construye (y cachea) los materiales compartidos del skin actual,
+  // liberando los anteriores.
+  const buildMaterials = () => {
+    if (matsRef.current) matsRef.current.dispose();
+    const { body, face } = makeSkinMaterials(skinRef.current);
+    const faceCache = {};
+    const getFace = (c) => (faceCache[c] ||= face(c));
+    matsRef.current = {
+      body,
+      getFace,
+      dispose() {
+        body.dispose();
+        Object.values(faceCache).forEach((m) => m.dispose());
+      },
+    };
+    return matsRef.current;
+  };
+
+  // Encuadra la cámara según el tamaño del cubo (los 2×2 son más pequeños).
+  const frameCamera = () => {
+    const cam = cameraRef.current;
+    const ctr = controlsRef.current;
+    if (!cam) return;
+    const dist = 4.2 + sizeRef.current * 1.4; // 2×2 ≈ 7, 3×3 ≈ 8.4
+    cam.position.setLength(dist);
+    if (ctr) {
+      ctr.target.set(0, 0, 0);
+      ctr.update();
+    }
+  };
+
+  // Crea los cubelets para un cubo N×N×N con el skin actual.
   const createCubelets = () => {
     cubelets.current = [];
+    const N = sizeRef.current;
+    const half = (N - 1) / 2;
     const cubeGeometry = new THREE.BoxGeometry(SIZE, SIZE, SIZE);
-
-    // Cuerpo del cubelet: cristal transparente que refracta y refleja el
-    // entorno (efecto vidrio/RTX).
-    // Cuerpo: vidrio transparente de alta calidad (refracta y refleja el
-    // entorno).
-    const baseMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0xffffff,
-      metalness: 0,
-      roughness: 0,
-      transmission: 1,
-      ior: 1.5,
-      thickness: 0.7,
-      transparent: true,
-      clearcoat: 1,
-      clearcoatRoughness: 0,
-      specularIntensity: 1,
-      envMapIntensity: 1.6,
-      dispersion: 2,
-      side: THREE.DoubleSide,
-    });
-
     const planeGeo = new THREE.PlaneGeometry(SIZE, SIZE);
-
+    const { body: bodyMat, getFace } = buildMaterials();
     const colors = FACE_COLORS;
 
     function createFace(color, pos, rot) {
       const separation = 0.051;
       const adjustedPos = pos.map((v) => v * (SIZE / 2 + separation));
-      // Caras de cristal de color: transmiten la luz y, gracias a la
-      // absorción (attenuation), conservan un color rico tipo gema. El
-      // clearcoat y el envMap dan los reflejos "RTX".
-      // Caras: cristal de color de alta calidad. La transmisión + absorción
-      // (attenuation) dan color de gema; la dispersión añade el destello
-      // cromático "RTX" en los bordes; el clearcoat y el envMap dan reflejos
-      // nítidos. Un toque de emisión evita que el color se apague en oscuro.
-      const mat = new THREE.MeshPhysicalMaterial({
-        color,
-        metalness: 0,
-        roughness: 0.03,
-        transmission: 1,
-        ior: 1.5,
-        thickness: 1.4,
-        attenuationColor: new THREE.Color(color),
-        attenuationDistance: 0.35,
-        emissive: new THREE.Color(color),
-        emissiveIntensity: 0.22,
-        clearcoat: 1,
-        clearcoatRoughness: 0.03,
-        specularIntensity: 1,
-        envMapIntensity: 1.6,
-        dispersion: 3.5,
-        transparent: true,
-        side: THREE.DoubleSide,
-      });
-      const mesh = new THREE.Mesh(planeGeo, mat);
+      const mesh = new THREE.Mesh(planeGeo, getFace(color));
       mesh.position.set(...adjustedPos);
       mesh.rotation.set(...rot);
       // Guardamos la dirección exterior y el color del sticker para calcular
@@ -170,23 +276,28 @@ export default function useRubikCube() {
       return mesh;
     }
 
-    for (let x = -1; x <= 1; x++) {
-      for (let y = -1; y <= 1; y++) {
-        for (let z = -1; z <= 1; z++) {
-          const cube = new THREE.Mesh(cubeGeometry, baseMaterial.clone());
-          cube.position.set(x * OFFSET, y * OFFSET, z * OFFSET);
-          cube.userData = { x, y, z };
+    // Recorremos la rejilla 0..N-1; la posición se centra restando half.
+    for (let gx = 0; gx < N; gx++) {
+      for (let gy = 0; gy < N; gy++) {
+        for (let gz = 0; gz < N; gz++) {
+          const cube = new THREE.Mesh(cubeGeometry, bodyMat);
+          cube.position.set(
+            (gx - half) * OFFSET,
+            (gy - half) * OFFSET,
+            (gz - half) * OFFSET
+          );
+          cube.userData = { x: gx, y: gy, z: gz };
 
-          if (x === 1)
+          if (gx === N - 1)
             cube.add(createFace(colors.R, [1, 0, 0], [0, Math.PI / 2, 0]));
-          if (x === -1)
+          if (gx === 0)
             cube.add(createFace(colors.L, [-1, 0, 0], [0, -Math.PI / 2, 0]));
-          if (y === 1)
+          if (gy === N - 1)
             cube.add(createFace(colors.U, [0, 1, 0], [-Math.PI / 2, 0, 0]));
-          if (y === -1)
+          if (gy === 0)
             cube.add(createFace(colors.D, [0, -1, 0], [Math.PI / 2, 0, 0]));
-          if (z === 1) cube.add(createFace(colors.F, [0, 0, 1], [0, 0, 0]));
-          if (z === -1)
+          if (gz === N - 1) cube.add(createFace(colors.F, [0, 0, 1], [0, 0, 0]));
+          if (gz === 0)
             cube.add(createFace(colors.B, [0, 0, -1], [0, Math.PI, 0]));
 
           cubeGroupRef.current.add(cube);
@@ -251,12 +362,15 @@ export default function useRubikCube() {
       isDragging.current = false;
     });
     controls.update();
+    cameraRef.current = camera;
+    controlsRef.current = controls;
 
     const cubeGroup = new THREE.Group();
     cubeGroupRef.current = cubeGroup;
     scene.add(cubeGroup);
 
     createCubelets();
+    frameCamera();
 
     // Iluminación: varios puntos de luz para reflejos vivos en todas las caras
     const pointLight1 = new THREE.PointLight(0xffffff, 3, 100);
@@ -331,7 +445,9 @@ export default function useRubikCube() {
     const onScroll = () => controls.handleResize();
     window.addEventListener("scroll", onScroll, { passive: true });
 
-    // Teclado para control de rotaciones
+    // Teclado para control de rotaciones. Las teclas usan la capa lógica
+    // (1=superior, 0=media, -1=inferior) y se traduce al índice de rejilla
+    // del tamaño actual.
     function handleKeyDown(e) {
       if (rotating.current) return;
 
@@ -345,10 +461,15 @@ export default function useRubikCube() {
       };
 
       const command = keyMap[e.code];
-      if (command) {
-        const [axis, index, dir] = command;
-        rotateLayer(axis, index, dir);
-      }
+      if (!command) return;
+      const [axis, layerPos, dir] = command;
+      const N = sizeRef.current;
+      // layerPos: 1 -> capa superior (N-1), -1 -> inferior (0), 0 -> media.
+      let gi = null;
+      if (layerPos === 1) gi = N - 1;
+      else if (layerPos === -1) gi = 0;
+      else if (N === 3) gi = 1;
+      if (gi !== null) rotateLayer(axis, gi, dir);
     }
 
     window.addEventListener("keydown", handleKeyDown);
@@ -364,6 +485,7 @@ export default function useRubikCube() {
       if (currentMount && renderer.domElement) {
         currentMount.removeChild(renderer.domElement);
       }
+      matsRef.current?.dispose();
       envMap.dispose();
       pmrem.dispose();
       renderer.dispose();
@@ -418,12 +540,13 @@ export default function useRubikCube() {
     if (rotating.current || !cubeGroupRef.current) return;
     rotating.current = true;
 
-    setLastMove(moveLabel({ axis, index, direction }));
+    const N = sizeRef.current;
+    const half = (N - 1) / 2;
+
+    setLastMove(moveLabel({ axis, index, direction }, N));
     pushMove(axis, index, direction);
 
-    const layer = cubelets.current.filter(
-      (c) => Math.round(c.userData[axis]) === index
-    );
+    const layer = cubelets.current.filter((c) => c.userData[axis] === index);
 
     const group = new THREE.Group();
     layer.forEach((cube) => {
@@ -454,19 +577,19 @@ export default function useRubikCube() {
 
         layer.forEach((cube) => {
           cube.position.applyAxisAngle(rotAxis, angle);
+          // Encaje a la rejilla N: grid = round(pos/OFFSET + half) en 0..N-1.
+          const gx = Math.round(cube.position.x / OFFSET + half);
+          const gy = Math.round(cube.position.y / OFFSET + half);
+          const gz = Math.round(cube.position.z / OFFSET + half);
           cube.position.set(
-            Math.round(cube.position.x / OFFSET) * OFFSET,
-            Math.round(cube.position.y / OFFSET) * OFFSET,
-            Math.round(cube.position.z / OFFSET) * OFFSET
+            (gx - half) * OFFSET,
+            (gy - half) * OFFSET,
+            (gz - half) * OFFSET
           );
 
           cube.rotateOnWorldAxis(rotAxis, angle);
 
-          cube.userData = {
-            x: Math.round(cube.position.x / OFFSET),
-            y: Math.round(cube.position.y / OFFSET),
-            z: Math.round(cube.position.z / OFFSET),
-          };
+          cube.userData = { x: gx, y: gy, z: gz };
 
           cube.updateMatrixWorld(true);
           cubeGroupRef.current.add(cube);
@@ -488,11 +611,12 @@ export default function useRubikCube() {
     const axes = ["x", "y", "z"];
     let i = 0;
 
+    const N = sizeRef.current;
     function doMove() {
       if (i >= moves) return;
       const axis = axes[Math.floor(Math.random() * 3)];
-      // Solo giros de cara (±1), como una mezcla real (no capas centrales).
-      const index = Math.random() < 0.5 ? 1 : -1;
+      // Solo giros de cara (capa 0 o N-1), como una mezcla real.
+      const index = Math.random() < 0.5 ? 0 : N - 1;
       const direction = Math.random() < 0.5 ? 1 : -1;
       rotateLayer(axis, index, direction);
       i++;
@@ -527,6 +651,42 @@ export default function useRubikCube() {
     setIsRotating(animationActive.current);
   };
 
+  // Cambia el tamaño del cubo (2×2 / 3×3): reconstruye y reinicia el estado.
+  const setCubeSize = (n) => {
+    if (rotating.current || !cubeGroupRef.current || n === sizeRef.current)
+      return;
+    sizeRef.current = n;
+    setCubeSizeState(n);
+
+    cubelets.current.forEach((c) => cubeGroupRef.current.remove(c));
+    cubelets.current = [];
+    createCubelets();
+    frameCamera();
+
+    solutionRef.current = [];
+    everScrambledRef.current = false;
+    setEverScrambled(false);
+    setNextHint(null);
+    setLastMove(null);
+    refreshProgress();
+  };
+
+  // Cambia el skin (material) manteniendo el estado del cubo.
+  const setSkin = (s) => {
+    if (s === skinRef.current) return;
+    skinRef.current = s;
+    setSkinState(s);
+    const { body, getFace } = buildMaterials();
+    cubelets.current.forEach((cube) => {
+      cube.material = body;
+      cube.children.forEach((ch) => {
+        if (ch.userData && ch.userData.isSticker) {
+          ch.material = getFace(ch.userData.color);
+        }
+      });
+    });
+  };
+
   return {
     mountRef,
     isRotating,
@@ -536,9 +696,13 @@ export default function useRubikCube() {
     nextHint,
     solved,
     everScrambled,
+    cubeSize,
+    skin,
     rotateLayer,
     shuffle,
     resetCube,
     toggleRotation,
+    setCubeSize,
+    setSkin,
   };
 }

@@ -6,6 +6,7 @@ import CubeControls from "./CubeControls";
 import CubeProgress from "./CubeProgress";
 import HintBar from "./HintBar";
 import DifficultySelector from "./DifficultySelector";
+import CubeOptions from "./CubeOptions";
 import "../styles/rubik.css";
 
 /**
@@ -22,10 +23,14 @@ export default function RubikCube() {
     nextHint,
     solved,
     everScrambled,
+    cubeSize,
+    skin,
     rotateLayer,
     shuffle,
     resetCube,
     toggleRotation,
+    setCubeSize,
+    setSkin,
   } = useRubikCube();
 
   const [difficulty, setDifficulty] = useState("easy");
@@ -58,11 +63,30 @@ export default function RubikCube() {
       nextHint={nextHint}
       solved={solved}
       everScrambled={everScrambled}
+      cubeSize={cubeSize}
     />
   );
 
   const difficultySelector = (
     <DifficultySelector value={difficulty} onChange={setDifficulty} />
+  );
+
+  const cubeOptions = (
+    <CubeOptions
+      cubeSize={cubeSize}
+      onCubeSize={setCubeSize}
+      skin={skin}
+      onSkin={setSkin}
+    />
+  );
+
+  const controls = (
+    <CubeControls
+      onRotate={rotateLayer}
+      isMobile={isMobile}
+      hintMove={hintMove}
+      cubeSize={cubeSize}
+    />
   );
 
   return (
@@ -78,12 +102,9 @@ export default function RubikCube() {
 
           <div className="mobile-controls-section">
             {actionBar}
+            {cubeOptions}
             {difficultySelector}
-            <CubeControls
-              onRotate={rotateLayer}
-              isMobile
-              hintMove={hintMove}
-            />
+            {controls}
           </div>
         </div>
       ) : (
@@ -93,14 +114,11 @@ export default function RubikCube() {
             {progressBar}
             {actionBar}
             {hintBar}
+            {cubeOptions}
             {difficultySelector}
           </div>
 
-          <CubeControls
-            onRotate={rotateLayer}
-            isMobile={false}
-            hintMove={hintMove}
-          />
+          {controls}
         </div>
       )}
     </div>

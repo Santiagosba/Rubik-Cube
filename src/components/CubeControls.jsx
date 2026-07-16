@@ -1,47 +1,31 @@
 // src/components/CubeControls.jsx
 import React, { useState, useEffect } from "react";
 
-// Definición de los botones por eje: cada entrada es [índice, dirección, etiqueta].
 const AXES = [
-  {
-    axis: "x",
-    title: "Eje X",
-    moves: [
-      [1, 1, "X+"],
-      [1, -1, "X+"],
-      [0, 1, "X0"],
-      [0, -1, "X0"],
-      [-1, 1, "X-"],
-      [-1, -1, "X-"],
-    ],
-  },
-  {
-    axis: "y",
-    title: "Eje Y",
-    moves: [
-      [1, 1, "Y+"],
-      [1, -1, "Y+"],
-      [0, 1, "Y0"],
-      [0, -1, "Y0"],
-      [-1, 1, "Y-"],
-      [-1, -1, "Y-"],
-    ],
-  },
-  {
-    axis: "z",
-    title: "Eje Z",
-    moves: [
-      [1, 1, "Z+"],
-      [1, -1, "Z+"],
-      [0, 1, "Z0"],
-      [0, -1, "Z0"],
-      [-1, 1, "Z-"],
-      [-1, -1, "Z-"],
-    ],
-  },
+  { axis: "x", title: "Eje X" },
+  { axis: "y", title: "Eje Y" },
+  { axis: "z", title: "Eje Z" },
 ];
 
-// ¿El botón (axis,index,dir) coincide con la pista?
+// Signo de la capa según su índice de rejilla (0..N-1).
+function layerSign(index, N) {
+  if (index === N - 1) return "+";
+  if (index === 0) return "-";
+  return "0";
+}
+
+// Movimientos de un eje para un cubo N×N×N: capas de arriba (N-1) a abajo (0),
+// cada una en los dos sentidos. Devuelve [gridIndex, dir, label].
+function axisMoves(axis, N) {
+  const moves = [];
+  for (let g = N - 1; g >= 0; g--) {
+    const label = `${axis.toUpperCase()}${layerSign(g, N)}`;
+    moves.push([g, 1, label]);
+    moves.push([g, -1, label]);
+  }
+  return moves;
+}
+
 function isHinted(hintMove, axis, index, dir) {
   return (
     hintMove &&
@@ -51,10 +35,10 @@ function isHinted(hintMove, axis, index, dir) {
   );
 }
 
-function AxisButtons({ moves, axis, onRotate, isMobile, hintMove }) {
+function AxisButtons({ axis, N, onRotate, isMobile, hintMove }) {
   return (
     <div className="button-group">
-      {moves.map(([index, dir, label]) => {
+      {axisMoves(axis, N).map(([index, dir, label]) => {
         const arrow = dir === 1 ? "↻" : "↺";
         const text = isMobile ? `${label} ${arrow}` : `Girar ${label} ${arrow}`;
         const hinted = isHinted(hintMove, axis, index, dir);
@@ -73,16 +57,15 @@ function AxisButtons({ moves, axis, onRotate, isMobile, hintMove }) {
 }
 
 /**
- * Panel de botones para girar cada capa del cubo.
+ * Panel de botones para girar cada capa del cubo (2×2 o 3×3).
  *
  * En escritorio muestra los tres ejes lado a lado; en móvil usa pestañas para
  * mostrar un solo eje a la vez. Si hay pista (modo fácil) resalta el botón a
  * pulsar y abre automáticamente su pestaña.
  */
-export default function CubeControls({ onRotate, isMobile, hintMove }) {
+export default function CubeControls({ onRotate, isMobile, hintMove, cubeSize = 3 }) {
   const [activeAxis, setActiveAxis] = useState("x");
 
-  // En móvil, abrir la pestaña del eje sugerido por la pista.
   useEffect(() => {
     if (hintMove) setActiveAxis(hintMove.axis);
   }, [hintMove]);
@@ -110,8 +93,8 @@ export default function CubeControls({ onRotate, isMobile, hintMove }) {
 
         <div className="axis-section">
           <AxisButtons
-            moves={current.moves}
             axis={current.axis}
+            N={cubeSize}
             onRotate={onRotate}
             isMobile
             hintMove={hintMove}
@@ -123,12 +106,12 @@ export default function CubeControls({ onRotate, isMobile, hintMove }) {
 
   return (
     <div className="controls-container desktop">
-      {AXES.map(({ axis, title, moves }) => (
+      {AXES.map(({ axis, title }) => (
         <div className="axis-section" key={axis}>
           <h3>{title}</h3>
           <AxisButtons
-            moves={moves}
             axis={axis}
+            N={cubeSize}
             onRotate={onRotate}
             isMobile={false}
             hintMove={hintMove}
