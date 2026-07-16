@@ -6,6 +6,7 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import { buildPyraminx, PYRA_FACES } from "../logic/pyraminx.js";
 
 // Tamaño de cada cubelet y separación entre ellos.
 const SIZE = 1;
@@ -207,6 +208,8 @@ export default function useRubikCube() {
   // Tamaño del cubo (N) y skin actuales (en refs para usarlos al crear).
   const sizeRef = useRef(3);
   const skinRef = useRef("glass");
+  // Tipo de puzzle: "cube" (N×N×N) o "pyra" (Pyraminx).
+  const puzzleRef = useRef("cube");
   const cameraRef = useRef(null);
   const controlsRef = useRef(null);
   const composerRef = useRef(null); // post-proceso (bloom) para el skin neón
@@ -220,6 +223,7 @@ export default function useRubikCube() {
   const [everScrambled, setEverScrambled] = useState(false);
   const [cubeSize, setCubeSizeState] = useState(3);
   const [skin, setSkinState] = useState("glass");
+  const [puzzle, setPuzzleState] = useState("cube");
   // Se inicializa de forma síncrona para renderizar el layout correcto desde
   // el primer render y evitar que el canvas nazca con tamaño de escritorio.
   const [isMobile, setIsMobile] = useState(
@@ -261,7 +265,8 @@ export default function useRubikCube() {
     const cam = cameraRef.current;
     const ctr = controlsRef.current;
     if (!cam) return;
-    const dist = 4.2 + sizeRef.current * 1.4; // 2×2 ≈ 7, 3×3 ≈ 8.4
+    const dist =
+      puzzleRef.current === "pyra" ? 6 : 4.2 + sizeRef.current * 1.4;
     cam.position.setLength(dist);
     if (ctr) {
       ctr.target.set(0, 0, 0);
@@ -269,9 +274,19 @@ export default function useRubikCube() {
     }
   };
 
-  // Crea los cubelets para un cubo N×N×N con el skin actual.
+  // Crea la geometría del puzzle actual (cubo o Pyraminx).
   const createCubelets = () => {
     cubelets.current = [];
+
+    // Pyraminx (Fase 1: geometría, sin giros todavía).
+    if (puzzleRef.current === "pyra") {
+      const { stickers } = buildPyraminx(cubeGroupRef.current, { scale: 1.75 });
+      // Guardamos los stickers en cubelets.current para el cálculo de
+      // progreso (cada sticker apunta a su cara).
+      cubelets.current = stickers;
+      return;
+    }
+
     const N = sizeRef.current;
     const half = (N - 1) / 2;
     const cubeGeometry = new THREE.BoxGeometry(SIZE, SIZE, SIZE);
@@ -535,6 +550,31 @@ export default function useRubikCube() {
     const v = new THREE.Vector3();
     let total = 0;
     let correct = 0;
+
+    if (puzzleRef.current === "pyra") {
+      // Pyraminx: cada sticker se compara con la normal de cara más cercana.
+      cubelets.current.forEach((st) => {
+        const d = st.userData;
+        if (!d || !d.isSticker) return;
+        total++;
+        v.set(d.normal[0], d.normal[1], d.normal[2]).applyQuaternion(
+          st.quaternion
+        );
+        let best = -2;
+        let bestColor = null;
+        PYRA_FACES.forEach((f) => {
+          const dot =
+            v.x * f.normal[0] + v.y * f.normal[1] + v.z * f.normal[2];
+          if (dot > best) {
+            best = dot;
+            bestColor = f.color;
+          }
+        });
+        if (bestColor === d.color) correct++;
+      });
+      return total ? (correct / total) * 100 : 100;
+    }
+
     cubelets.current.forEach((cube) => {
       cube.children.forEach((child) => {
         const d = child.userData;
@@ -575,6 +615,8 @@ export default function useRubikCube() {
   };
 
   const rotateLayer = (axis, index, direction) => {
+    // El Pyraminx (Fase 1) aún no tiene giros implementados.
+    if (puzzleRef.current === "pyra") return;
     if (rotating.current || !cubeGroupRef.current) return;
     rotating.current = true;
 
@@ -643,6 +685,8 @@ export default function useRubikCube() {
   };
 
   const shuffle = (moves = 20) => {
+    // El Pyraminx (Fase 1) todavía no se puede mezclar.
+    if (puzzleRef.current === "pyra") return;
     if (rotating.current) return;
     everScrambledRef.current = true;
     setEverScrambled(true);
@@ -668,25 +712,25 @@ export default function useRubikCube() {
     doMove();
   };
 
-  const resetCube = () => {
-    if (rotating.current || !cubeGroupRef.current) return;
-    rotating.current = true;
-
-    cubelets.current.forEach((cube) => {
-      cubeGroupRef.current.remove(cube);
-    });
-
+  // Reconstruye el puzzle desde cero y reinicia todo el estado.
+  const rebuild = () => {
+    cubeGroupRef.current.clear();
     cubelets.current = [];
     createCubelets();
-
+    frameCamera();
     solutionRef.current = [];
     everScrambledRef.current = false;
     setEverScrambled(false);
     setNextHint(null);
+    refreshProgress();
+  };
 
+  const resetCube = () => {
+    if (rotating.current || !cubeGroupRef.current) return;
+    rotating.current = true;
+    rebuild();
     rotating.current = false;
     setLastMove("Reseteado");
-    refreshProgress();
   };
 
   const toggleRotation = () => {
@@ -694,24 +738,26 @@ export default function useRubikCube() {
     setIsRotating(animationActive.current);
   };
 
-  // Cambia el tamaño del cubo (2×2 / 3×3): reconstruye y reinicia el estado.
+  // Cambia el tamaño del cubo (2×2..5×5): reconstruye y reinicia el estado.
   const setCubeSize = (n) => {
-    if (rotating.current || !cubeGroupRef.current || n === sizeRef.current)
-      return;
+    if (rotating.current || !cubeGroupRef.current) return;
+    if (n === sizeRef.current && puzzleRef.current === "cube") return;
+    puzzleRef.current = "cube";
+    setPuzzleState("cube");
     sizeRef.current = n;
     setCubeSizeState(n);
-
-    cubelets.current.forEach((c) => cubeGroupRef.current.remove(c));
-    cubelets.current = [];
-    createCubelets();
-    frameCamera();
-
-    solutionRef.current = [];
-    everScrambledRef.current = false;
-    setEverScrambled(false);
-    setNextHint(null);
+    rebuild();
     setLastMove(null);
-    refreshProgress();
+  };
+
+  // Cambia el tipo de puzzle (cubo N×N×N o Pyraminx).
+  const setPuzzle = (kind) => {
+    if (rotating.current || !cubeGroupRef.current || kind === puzzleRef.current)
+      return;
+    puzzleRef.current = kind;
+    setPuzzleState(kind);
+    rebuild();
+    setLastMove(null);
   };
 
   // Cambia el skin (material) manteniendo el estado del cubo.
@@ -741,11 +787,13 @@ export default function useRubikCube() {
     everScrambled,
     cubeSize,
     skin,
+    puzzle,
     rotateLayer,
     shuffle,
     resetCube,
     toggleRotation,
     setCubeSize,
     setSkin,
+    setPuzzle,
   };
 }
