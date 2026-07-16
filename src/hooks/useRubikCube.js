@@ -226,6 +226,8 @@ export default function useRubikCube() {
   const puzzleRef = useRef("cube");
   // Posiciones "home" de los stickers del Pyraminx (para el encaje).
   const pyraHomesRef = useRef([]);
+  // Cuerpo (núcleo oscuro) del Pyraminx, para re-aplicarle el skin.
+  const pyraBodyRef = useRef(null);
   const cameraRef = useRef(null);
   const controlsRef = useRef(null);
   const composerRef = useRef(null); // post-proceso (bloom) para el skin neón
@@ -295,11 +297,17 @@ export default function useRubikCube() {
     cubelets.current = [];
 
     if (puzzleRef.current === "pyra") {
-      const { stickers, homes } = buildPyraminx(cubeGroupRef.current, {
+      // Usa los materiales del skin actual para que Cristal/Clásico/Neón/Metal
+      // afecten también a la pirámide (cuerpo + stickers de color).
+      const { body: bodyMat, getFace } = buildMaterials();
+      const { stickers, homes, body } = buildPyraminx(cubeGroupRef.current, {
         scale: 1.75,
+        bodyMaterial: bodyMat,
+        faceMaterial: (c) => getFace(c),
       });
       cubelets.current = stickers;
       pyraHomesRef.current = homes;
+      pyraBodyRef.current = body;
       return;
     }
 
@@ -869,6 +877,17 @@ export default function useRubikCube() {
     skinRef.current = s;
     setSkinState(s);
     const { body, getFace } = buildMaterials();
+    if (puzzleRef.current === "pyra") {
+      // Pyraminx: los cubelets son los propios stickers (sin hijos); el núcleo
+      // oscuro se guarda aparte en pyraBodyRef.
+      if (pyraBodyRef.current) pyraBodyRef.current.material = body;
+      cubelets.current.forEach((st) => {
+        if (st.userData && st.userData.isSticker) {
+          st.material = getFace(st.userData.color);
+        }
+      });
+      return;
+    }
     cubelets.current.forEach((cube) => {
       cube.material = body;
       cube.children.forEach((ch) => {

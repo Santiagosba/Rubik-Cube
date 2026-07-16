@@ -38,7 +38,7 @@ export const PYRA_FACES = RAW_VERTICES.map((v, i) => {
  * Cada sticker es un mesh con geometría centrada en su centroide y
  * `position` en dicho centroide (como los cubelets del cubo), para poder
  * girarlos con el mismo patrón.
- * @returns {{ stickers: THREE.Mesh[], homes: THREE.Vector3[] }}
+ * @returns {{ stickers: THREE.Mesh[], homes: THREE.Vector3[], body: THREE.Mesh }}
  */
 export function buildPyraminx(parent, opts = {}) {
   const scale = opts.scale ?? 1.75;
@@ -86,7 +86,8 @@ export function buildPyraminx(parent, opts = {}) {
   });
   bodyGeo.setAttribute("position", new THREE.Float32BufferAttribute(bodyPos, 3));
   bodyGeo.computeVertexNormals();
-  parent.add(new THREE.Mesh(bodyGeo, bodyMaterial));
+  const body = new THREE.Mesh(bodyGeo, bodyMaterial);
+  parent.add(body);
 
   // Stickers: cada cara subdividida en 9 triángulos.
   faces.forEach(({ opp, tri }) => {
@@ -148,5 +149,5 @@ export function buildPyraminx(parent, opts = {}) {
     });
   });
 
-  return { stickers, homes };
+  return { stickers, homes, body };
 }
