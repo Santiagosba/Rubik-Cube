@@ -6,6 +6,12 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import {
+  buildPyraminx,
+  PYRA_FACES,
+  PYRA_AXES,
+  PYRA_VERTEX_LABELS,
+} from "../logic/pyraminx.js";
 
 // Tamaño de cada cubelet y separación entre ellos.
 const SIZE = 1;
@@ -43,10 +49,13 @@ export function layerLabel(index, N) {
   return String(index + 1);
 }
 
-// Etiqueta legible de un movimiento, p.ej. "X+ ↻" o "X2 ↻".
+// Etiqueta legible de un movimiento, p.ej. "X+ ↻", "X2 ↻" o (Pyraminx) "A ↻".
 export function moveLabel(move, N = 3) {
   if (!move) return "";
   const arrow = move.direction === 1 ? "↻" : "↺";
+  if (move.vertex !== undefined) {
+    return `${PYRA_VERTEX_LABELS[move.vertex]} ${arrow}`;
+  }
   return `${move.axis.toUpperCase()}${layerLabel(move.index, N)} ${arrow}`;
 }
 
@@ -160,9 +169,15 @@ function makeSkinMaterials(skin) {
   };
 }
 
-// ¿Son a y b movimientos inversos (misma capa, sentido opuesto)?
+// ¿Son a y b movimientos inversos (mismo movimiento, sentido opuesto)?
+// Sirve tanto para cubo ({axis,index}) como para Pyraminx ({vertex}).
 function isInverse(a, b) {
-  return a.axis === b.axis && a.index === b.index && a.direction === -b.direction;
+  return (
+    a.direction === -b.direction &&
+    a.axis === b.axis &&
+    a.index === b.index &&
+    a.vertex === b.vertex
+  );
 }
 
 // Fondo con degradado oscuro (casi negro): el cristal necesita algo que
@@ -207,6 +222,10 @@ export default function useRubikCube() {
   // Tamaño del cubo (N) y skin actuales (en refs para usarlos al crear).
   const sizeRef = useRef(3);
   const skinRef = useRef("glass");
+  // Tipo de puzzle: "cube" (N×N×N) o "pyra" (Pyraminx).
+  const puzzleRef = useRef("cube");
+  // Posiciones "home" de los stickers del Pyraminx (para el encaje).
+  const pyraHomesRef = useRef([]);
   const cameraRef = useRef(null);
   const controlsRef = useRef(null);
   const composerRef = useRef(null); // post-proceso (bloom) para el skin neón
@@ -220,6 +239,7 @@ export default function useRubikCube() {
   const [everScrambled, setEverScrambled] = useState(false);
   const [cubeSize, setCubeSizeState] = useState(3);
   const [skin, setSkinState] = useState("glass");
+  const [puzzle, setPuzzleState] = useState("cube");
   // Se inicializa de forma síncrona para renderizar el layout correcto desde
   // el primer render y evitar que el canvas nazca con tamaño de escritorio.
   const [isMobile, setIsMobile] = useState(
@@ -261,7 +281,8 @@ export default function useRubikCube() {
     const cam = cameraRef.current;
     const ctr = controlsRef.current;
     if (!cam) return;
-    const dist = 4.2 + sizeRef.current * 1.4; // 2×2 ≈ 7, 3×3 ≈ 8.4
+    const dist =
+      puzzleRef.current === "pyra" ? 6 : 4.2 + sizeRef.current * 1.4;
     cam.position.setLength(dist);
     if (ctr) {
       ctr.target.set(0, 0, 0);
@@ -269,9 +290,19 @@ export default function useRubikCube() {
     }
   };
 
-  // Crea los cubelets para un cubo N×N×N con el skin actual.
+  // Crea la geometría del puzzle actual (cubo o Pyraminx).
   const createCubelets = () => {
     cubelets.current = [];
+
+    if (puzzleRef.current === "pyra") {
+      const { stickers, homes } = buildPyraminx(cubeGroupRef.current, {
+        scale: 1.75,
+      });
+      cubelets.current = stickers;
+      pyraHomesRef.current = homes;
+      return;
+    }
+
     const N = sizeRef.current;
     const half = (N - 1) / 2;
     const cubeGeometry = new THREE.BoxGeometry(SIZE, SIZE, SIZE);
@@ -535,6 +566,31 @@ export default function useRubikCube() {
     const v = new THREE.Vector3();
     let total = 0;
     let correct = 0;
+
+    if (puzzleRef.current === "pyra") {
+      // Pyraminx: cada sticker se compara con la normal de cara más cercana.
+      cubelets.current.forEach((st) => {
+        const d = st.userData;
+        if (!d || !d.isSticker) return;
+        total++;
+        v.set(d.normal[0], d.normal[1], d.normal[2]).applyQuaternion(
+          st.quaternion
+        );
+        let best = -2;
+        let bestColor = null;
+        PYRA_FACES.forEach((f) => {
+          const dot =
+            v.x * f.normal[0] + v.y * f.normal[1] + v.z * f.normal[2];
+          if (dot > best) {
+            best = dot;
+            bestColor = f.color;
+          }
+        });
+        if (bestColor === d.color) correct++;
+      });
+      return total ? (correct / total) * 100 : 100;
+    }
+
     cubelets.current.forEach((cube) => {
       cube.children.forEach((child) => {
         const d = child.userData;
@@ -550,8 +606,8 @@ export default function useRubikCube() {
 
   // Actualiza la pila de solución al aplicar un movimiento (la solución es el
   // inverso del historial) y refresca la siguiente pista.
-  const pushMove = (axis, index, direction) => {
-    const inv = { axis, index, direction: -direction };
+  const pushMoveObj = (move) => {
+    const inv = { ...move, direction: -move.direction };
     const S = solutionRef.current;
     solutionRef.current =
       S.length && isInverse(inv, S[0]) ? S.slice(1) : [inv, ...S];
@@ -575,6 +631,8 @@ export default function useRubikCube() {
   };
 
   const rotateLayer = (axis, index, direction) => {
+    // El Pyraminx (Fase 1) aún no tiene giros implementados.
+    if (puzzleRef.current === "pyra") return;
     if (rotating.current || !cubeGroupRef.current) return;
     rotating.current = true;
 
@@ -582,7 +640,7 @@ export default function useRubikCube() {
     const half = (N - 1) / 2;
 
     setLastMove(moveLabel({ axis, index, direction }, N));
-    pushMove(axis, index, direction);
+    pushMoveObj({ axis, index, direction });
 
     const layer = cubelets.current.filter((c) => c.userData[axis] === index);
 
@@ -642,7 +700,96 @@ export default function useRubikCube() {
     requestAnimationFrame(animateRotation);
   };
 
+  // Encaja una posición a su "home" más cercano (evita deriva numérica).
+  const snapToHome = (pos) => {
+    const homes = pyraHomesRef.current;
+    let best = null;
+    let bestD = Infinity;
+    for (let i = 0; i < homes.length; i++) {
+      const d = pos.distanceToSquared(homes[i]);
+      if (d < bestD) {
+        bestD = d;
+        best = homes[i];
+      }
+    }
+    if (best) pos.copy(best);
+  };
+
+  // Giro de una capa de vértice del Pyraminx (120°). Selecciona los stickers
+  // más cercanos al vértice (los 12 de la capa) y los rota alrededor del eje.
+  const pyraRotate = (vertex, direction) => {
+    if (puzzleRef.current !== "pyra") return;
+    if (rotating.current || !cubeGroupRef.current) return;
+    rotating.current = true;
+
+    const axis = PYRA_AXES[vertex];
+    const angle = ((2 * Math.PI) / 3) * direction;
+
+    setLastMove(moveLabel({ vertex, direction }));
+    pushMoveObj({ vertex, direction });
+
+    // La capa de un vértice tiene 12 stickers (tip + axial + 3 aristas).
+    const scored = cubelets.current.map((st) => ({
+      st,
+      d: st.position.dot(axis),
+    }));
+    scored.sort((a, b) => b.d - a.d);
+    const layer = scored.slice(0, 12).map((s) => s.st);
+
+    const group = new THREE.Group();
+    layer.forEach((st) => {
+      cubeGroupRef.current.remove(st);
+      group.add(st);
+    });
+    cubeGroupRef.current.add(group);
+
+    const duration = 300;
+    const start = performance.now();
+    const q = new THREE.Quaternion();
+
+    function animate(now) {
+      const t = Math.min((now - start) / duration, 1);
+      group.quaternion.copy(q.setFromAxisAngle(axis, angle * t));
+      if (t < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        group.quaternion.copy(q.setFromAxisAngle(axis, angle));
+        group.updateMatrixWorld();
+        layer.forEach((st) => {
+          st.position.applyAxisAngle(axis, angle);
+          snapToHome(st.position);
+          st.rotateOnWorldAxis(axis, angle);
+          st.updateMatrixWorld(true);
+          cubeGroupRef.current.add(st);
+        });
+        cubeGroupRef.current.remove(group);
+        rotating.current = false;
+        refreshProgress();
+      }
+    }
+    requestAnimationFrame(animate);
+  };
+
   const shuffle = (moves = 20) => {
+    if (puzzleRef.current === "pyra") {
+      // Mezcla del Pyraminx: giros de vértice al azar.
+      if (rotating.current) return;
+      everScrambledRef.current = true;
+      setEverScrambled(true);
+      let i = 0;
+      const n = Math.min(moves, 12);
+      const doMove = () => {
+        if (i >= n) return;
+        pyraRotate(
+          Math.floor(Math.random() * 4),
+          Math.random() < 0.5 ? 1 : -1
+        );
+        i++;
+        setTimeout(doMove, 380);
+      };
+      doMove();
+      return;
+    }
     if (rotating.current) return;
     everScrambledRef.current = true;
     setEverScrambled(true);
@@ -668,25 +815,25 @@ export default function useRubikCube() {
     doMove();
   };
 
-  const resetCube = () => {
-    if (rotating.current || !cubeGroupRef.current) return;
-    rotating.current = true;
-
-    cubelets.current.forEach((cube) => {
-      cubeGroupRef.current.remove(cube);
-    });
-
+  // Reconstruye el puzzle desde cero y reinicia todo el estado.
+  const rebuild = () => {
+    cubeGroupRef.current.clear();
     cubelets.current = [];
     createCubelets();
-
+    frameCamera();
     solutionRef.current = [];
     everScrambledRef.current = false;
     setEverScrambled(false);
     setNextHint(null);
+    refreshProgress();
+  };
 
+  const resetCube = () => {
+    if (rotating.current || !cubeGroupRef.current) return;
+    rotating.current = true;
+    rebuild();
     rotating.current = false;
     setLastMove("Reseteado");
-    refreshProgress();
   };
 
   const toggleRotation = () => {
@@ -694,24 +841,26 @@ export default function useRubikCube() {
     setIsRotating(animationActive.current);
   };
 
-  // Cambia el tamaño del cubo (2×2 / 3×3): reconstruye y reinicia el estado.
+  // Cambia el tamaño del cubo (2×2..5×5): reconstruye y reinicia el estado.
   const setCubeSize = (n) => {
-    if (rotating.current || !cubeGroupRef.current || n === sizeRef.current)
-      return;
+    if (rotating.current || !cubeGroupRef.current) return;
+    if (n === sizeRef.current && puzzleRef.current === "cube") return;
+    puzzleRef.current = "cube";
+    setPuzzleState("cube");
     sizeRef.current = n;
     setCubeSizeState(n);
-
-    cubelets.current.forEach((c) => cubeGroupRef.current.remove(c));
-    cubelets.current = [];
-    createCubelets();
-    frameCamera();
-
-    solutionRef.current = [];
-    everScrambledRef.current = false;
-    setEverScrambled(false);
-    setNextHint(null);
+    rebuild();
     setLastMove(null);
-    refreshProgress();
+  };
+
+  // Cambia el tipo de puzzle (cubo N×N×N o Pyraminx).
+  const setPuzzle = (kind) => {
+    if (rotating.current || !cubeGroupRef.current || kind === puzzleRef.current)
+      return;
+    puzzleRef.current = kind;
+    setPuzzleState(kind);
+    rebuild();
+    setLastMove(null);
   };
 
   // Cambia el skin (material) manteniendo el estado del cubo.
@@ -741,11 +890,14 @@ export default function useRubikCube() {
     everScrambled,
     cubeSize,
     skin,
+    puzzle,
     rotateLayer,
+    pyraRotate,
     shuffle,
     resetCube,
     toggleRotation,
     setCubeSize,
     setSkin,
+    setPuzzle,
   };
 }

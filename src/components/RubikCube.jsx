@@ -3,6 +3,7 @@ import useRubikCube from "../hooks/useRubikCube";
 import CubeCanvas from "./CubeCanvas";
 import CubeActionBar from "./CubeActionBar";
 import CubeControls from "./CubeControls";
+import PyraControls from "./PyraControls";
 import CubeProgress from "./CubeProgress";
 import HintBar from "./HintBar";
 import DifficultySelector from "./DifficultySelector";
@@ -25,15 +26,20 @@ export default function RubikCube() {
     everScrambled,
     cubeSize,
     skin,
+    puzzle,
     rotateLayer,
+    pyraRotate,
     shuffle,
     resetCube,
     toggleRotation,
     setCubeSize,
     setSkin,
+    setPuzzle,
   } = useRubikCube();
 
   const [difficulty, setDifficulty] = useState("easy");
+
+  const isPyra = puzzle === "pyra";
 
   // Solo el modo fácil resalta el botón/pestaña de la pista.
   const hintMove = difficulty === "easy" ? nextHint : null;
@@ -73,6 +79,8 @@ export default function RubikCube() {
 
   const cubeOptions = (
     <CubeOptions
+      puzzle={puzzle}
+      onPuzzle={setPuzzle}
       cubeSize={cubeSize}
       onCubeSize={setCubeSize}
       skin={skin}
@@ -80,7 +88,9 @@ export default function RubikCube() {
     />
   );
 
-  const controls = (
+  const controls = isPyra ? (
+    <PyraControls onRotate={pyraRotate} hintMove={hintMove} />
+  ) : (
     <CubeControls
       onRotate={rotateLayer}
       isMobile={isMobile}
