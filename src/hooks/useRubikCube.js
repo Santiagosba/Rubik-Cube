@@ -2,6 +2,10 @@ import { useRef, useEffect, useState } from "react";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { TrackballControls } from "three/examples/jsm/controls/TrackballControls.js";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 
 // Tamaño de cada cubelet y separación entre ellos.
 const SIZE = 1;
@@ -27,19 +31,23 @@ const SOLVED_COLOR_BY_DIR = {
   "0,0,-1": FACE_COLORS.B,
 };
 
-// Signo de la capa según su índice de rejilla (0..N-1): borde superior "+",
-// inferior "-", y las intermedias "0".
-export function layerSign(index, N) {
-  if (index === N - 1) return "+";
-  if (index === 0) return "-";
-  return "0";
+// Etiqueta de la capa según su índice (0..N-1). En cubos pequeños (N<=3)
+// usa +/0/- (arriba/medio/abajo); en cubos grandes usa el número de capa
+// para que cada una sea inequívoca.
+export function layerLabel(index, N) {
+  if (N <= 3) {
+    if (index === N - 1) return "+";
+    if (index === 0) return "-";
+    return "0";
+  }
+  return String(index + 1);
 }
 
-// Etiqueta legible de un movimiento, p.ej. "X+ ↻".
+// Etiqueta legible de un movimiento, p.ej. "X+ ↻" o "X2 ↻".
 export function moveLabel(move, N = 3) {
   if (!move) return "";
   const arrow = move.direction === 1 ? "↻" : "↺";
-  return `${move.axis.toUpperCase()}${layerSign(move.index, N)} ${arrow}`;
+  return `${move.axis.toUpperCase()}${layerLabel(move.index, N)} ${arrow}`;
 }
 
 // ===== Skins (materiales del cubo) =====
@@ -53,36 +61,42 @@ export const SKINS = [
 
 function makeSkinMaterials(skin) {
   if (skin === "classic") {
+    // Plástico mate: muy rugoso, sin reflejos ni brillo, colores algo
+    // apagados como un cubo real.
     return {
       body: new THREE.MeshStandardMaterial({
-        color: 0x0b0b10,
-        roughness: 0.7,
+        color: 0x121216,
+        roughness: 1,
         metalness: 0,
+        envMapIntensity: 0.1,
       }),
-      face: (c) =>
-        new THREE.MeshStandardMaterial({
-          color: c,
-          roughness: 0.4,
+      face: (c) => {
+        const col = new THREE.Color(c).lerp(new THREE.Color(0x2a2a2a), 0.18);
+        return new THREE.MeshStandardMaterial({
+          color: col,
+          roughness: 0.95,
           metalness: 0,
-          emissive: new THREE.Color(c),
-          emissiveIntensity: 0.05,
+          envMapIntensity: 0.1,
           side: THREE.DoubleSide,
-        }),
+        });
+      },
     };
   }
   if (skin === "neon") {
+    // Neón: cuerpo negro y caras que emiten luz con fuerza (el bloom añade
+    // el halo de brillo).
     return {
       body: new THREE.MeshStandardMaterial({
-        color: 0x050508,
-        roughness: 0.45,
-        metalness: 0.2,
+        color: 0x000000,
+        roughness: 0.55,
+        metalness: 0.1,
       }),
       face: (c) =>
         new THREE.MeshStandardMaterial({
           color: 0x000000,
           emissive: new THREE.Color(c),
           emissiveIntensity: 1.1,
-          roughness: 0.4,
+          roughness: 0.5,
           metalness: 0,
           side: THREE.DoubleSide,
         }),
@@ -195,6 +209,7 @@ export default function useRubikCube() {
   const skinRef = useRef("glass");
   const cameraRef = useRef(null);
   const controlsRef = useRef(null);
+  const composerRef = useRef(null); // post-proceso (bloom) para el skin neón
   const matsRef = useRef(null); // materiales compartidos del skin actual
 
   const [isRotating, setIsRotating] = useState(false);
@@ -365,6 +380,23 @@ export default function useRubikCube() {
     cameraRef.current = camera;
     controlsRef.current = controls;
 
+    // Post-proceso con bloom (solo se usa al render para el skin neón).
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    composer.addPass(
+      new UnrealBloomPass(
+        new THREE.Vector2(
+          currentMount.clientWidth,
+          currentMount.clientHeight
+        ),
+        0.55, // fuerza
+        0.4, // radio
+        0.22 // umbral
+      )
+    );
+    composer.addPass(new OutputPass());
+    composerRef.current = composer;
+
     const cubeGroup = new THREE.Group();
     cubeGroupRef.current = cubeGroup;
     scene.add(cubeGroup);
@@ -418,7 +450,11 @@ export default function useRubikCube() {
       }
 
       controls.update();
-      renderer.render(scene, camera);
+      if (skinRef.current === "neon" && composerRef.current) {
+        composerRef.current.render();
+      } else {
+        renderer.render(scene, camera);
+      }
     }
     animate();
 
@@ -429,6 +465,7 @@ export default function useRubikCube() {
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
+      composerRef.current?.setSize(w, h);
       // TrackballControls usa coordenadas de pantalla: hay que recalcularlas.
       controls.handleResize();
     }
@@ -486,6 +523,7 @@ export default function useRubikCube() {
         currentMount.removeChild(renderer.domElement);
       }
       matsRef.current?.dispose();
+      composerRef.current?.dispose();
       envMap.dispose();
       pmrem.dispose();
       renderer.dispose();
@@ -615,8 +653,13 @@ export default function useRubikCube() {
     function doMove() {
       if (i >= moves) return;
       const axis = axes[Math.floor(Math.random() * 3)];
-      // Solo giros de cara (capa 0 o N-1), como una mezcla real.
-      const index = Math.random() < 0.5 ? 0 : N - 1;
+      // En 2×2/3×3 solo giros de cara; en cubos grandes, cualquier capa.
+      const index =
+        N <= 3
+          ? Math.random() < 0.5
+            ? 0
+            : N - 1
+          : Math.floor(Math.random() * N);
       const direction = Math.random() < 0.5 ? 1 : -1;
       rotateLayer(axis, index, direction);
       i++;

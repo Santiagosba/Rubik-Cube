@@ -7,11 +7,14 @@ const AXES = [
   { axis: "z", title: "Eje Z" },
 ];
 
-// Signo de la capa según su índice de rejilla (0..N-1).
-function layerSign(index, N) {
-  if (index === N - 1) return "+";
-  if (index === 0) return "-";
-  return "0";
+// Etiqueta de la capa: +/0/- en cubos pequeños, número en los grandes.
+function layerLabel(index, N) {
+  if (N <= 3) {
+    if (index === N - 1) return "+";
+    if (index === 0) return "-";
+    return "0";
+  }
+  return String(index + 1);
 }
 
 // Movimientos de un eje para un cubo N×N×N: capas de arriba (N-1) a abajo (0),
@@ -19,7 +22,7 @@ function layerSign(index, N) {
 function axisMoves(axis, N) {
   const moves = [];
   for (let g = N - 1; g >= 0; g--) {
-    const label = `${axis.toUpperCase()}${layerSign(g, N)}`;
+    const label = `${axis.toUpperCase()}${layerLabel(g, N)}`;
     moves.push([g, 1, label]);
     moves.push([g, -1, label]);
   }
