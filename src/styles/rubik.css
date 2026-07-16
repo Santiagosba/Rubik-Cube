@@ -526,6 +526,18 @@
   margin-top: 6px;
 }
 
+/* Controles del Pyraminx: los 4 vértices en rejilla, no en columna. */
+.controls-container.pyra {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+}
+
+.controls-container.pyra .axis-section {
+  min-width: 150px;
+}
+
 /* Pestañas de eje (solo móvil) para elegir X / Y / Z sin scroll largo. */
 .axis-tabs {
   display: grid;

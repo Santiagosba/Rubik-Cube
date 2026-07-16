@@ -3,6 +3,7 @@ import useRubikCube from "../hooks/useRubikCube";
 import CubeCanvas from "./CubeCanvas";
 import CubeActionBar from "./CubeActionBar";
 import CubeControls from "./CubeControls";
+import PyraControls from "./PyraControls";
 import CubeProgress from "./CubeProgress";
 import HintBar from "./HintBar";
 import DifficultySelector from "./DifficultySelector";
@@ -27,6 +28,7 @@ export default function RubikCube() {
     skin,
     puzzle,
     rotateLayer,
+    pyraRotate,
     shuffle,
     resetCube,
     toggleRotation,
@@ -61,7 +63,7 @@ export default function RubikCube() {
     />
   );
 
-  const hintBar = isPyra ? null : (
+  const hintBar = (
     <HintBar
       difficulty={difficulty}
       nextHint={nextHint}
@@ -71,7 +73,7 @@ export default function RubikCube() {
     />
   );
 
-  const difficultySelector = isPyra ? null : (
+  const difficultySelector = (
     <DifficultySelector value={difficulty} onChange={setDifficulty} />
   );
 
@@ -86,11 +88,8 @@ export default function RubikCube() {
     />
   );
 
-  // En Pyraminx (Fase 1) aún no hay giros: se muestra una nota en su lugar.
   const controls = isPyra ? (
-    <div className="pyra-note">
-      🔺 Pyraminx — geometría lista. Los giros llegan en la Fase 2.
-    </div>
+    <PyraControls onRotate={pyraRotate} hintMove={hintMove} />
   ) : (
     <CubeControls
       onRotate={rotateLayer}
