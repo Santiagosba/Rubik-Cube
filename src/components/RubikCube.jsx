@@ -49,6 +49,7 @@ export default function RubikCube() {
       isRotating={isRotating}
       lastMove={lastMove}
       isMobile={isMobile}
+      isPyra={isPyra}
       onToggleRotation={toggleRotation}
       onShuffle={shuffle}
       onReset={resetCube}

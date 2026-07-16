@@ -9,6 +9,7 @@ export default function CubeActionBar({
   isRotating,
   lastMove,
   isMobile,
+  isPyra = false,
   onToggleRotation,
   onShuffle,
   onReset,
@@ -60,17 +61,19 @@ export default function CubeActionBar({
           className="main-button shuffle-button"
           onClick={() => onShuffle(20)}
         >
-          Mezclar cubo
+          {isPyra ? "Mezclar" : "Mezclar cubo"}
         </button>
         <button className="main-button reset-button" onClick={onReset}>
-          Resetear cubo
+          {isPyra ? "Reiniciar" : "Resetear cubo"}
         </button>
       </div>
 
       <div className="status-info">
         <div className="last-move">Último movimiento: {lastMove || "—"}</div>
         <div className="keyboard-info">
-          Teclas para rotar: Q/A/Z/W/S/X (X), E/D/C/R/F/V (Y), T/G/B/Y/H/N (Z)
+          {isPyra
+            ? "Gira cada vértice (A/B/C/D) 120° para resolver la pirámide"
+            : "Teclas para rotar: Q/A/Z/W/S/X (X), E/D/C/R/F/V (Y), T/G/B/Y/H/N (Z)"}
         </div>
       </div>
     </>
