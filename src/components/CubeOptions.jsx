@@ -5,6 +5,8 @@ import { SKINS } from "../hooks/useRubikCube";
 const TYPES = [
   { size: 2, label: "2×2", desc: "Pocket" },
   { size: 3, label: "3×3", desc: "Clásico" },
+  { size: 4, label: "4×4", desc: "Venganza" },
+  { size: 5, label: "5×5", desc: "Profesor" },
 ];
 
 /**
