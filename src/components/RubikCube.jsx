@@ -4,6 +4,7 @@ import CubeCanvas from "./CubeCanvas";
 import CubeActionBar from "./CubeActionBar";
 import CubeControls from "./CubeControls";
 import PyraControls from "./PyraControls";
+import MegaControls from "./MegaControls";
 import CubeProgress from "./CubeProgress";
 import HintBar from "./HintBar";
 import DifficultySelector from "./DifficultySelector";
@@ -35,6 +36,7 @@ export default function RubikCube() {
     setCubeSize,
     setSkin,
     setPuzzle,
+    megaRotate,
   } = useRubikCube();
 
   const [difficulty, setDifficulty] = useState("easy");
@@ -91,13 +93,7 @@ export default function RubikCube() {
   );
 
   const controls = isMega ? (
-    <div className="controls-container mega-note">
-      <p>
-        🧩 <strong>Megaminx</strong> (dodecaedro de 12 caras). Por ahora puedes
-        explorar su geometría girando la vista; los giros por cara llegarán en la
-        siguiente fase.
-      </p>
-    </div>
+    <MegaControls onRotate={megaRotate} hintMove={hintMove} />
   ) : isPyra ? (
     <PyraControls onRotate={pyraRotate} hintMove={hintMove} />
   ) : (

@@ -89,6 +89,17 @@ export const MEGA_FACES = computeFaces(1).map((f, i) => ({
   color: MEGA_COLORS[i],
 }));
 
+// Ejes de giro: la normal (unitaria) de cada una de las 12 caras.
+export const MEGA_AXES = MEGA_FACES.map((f) =>
+  new THREE.Vector3(f.normal[0], f.normal[1], f.normal[2]).normalize()
+);
+
+// Número de stickers que giran con una cara (1 centro + 5×5 = 26).
+export const MEGA_LAYER = 26;
+
+// Etiqueta corta de cada cara para controles/pistas.
+export const MEGA_FACE_LABELS = MEGA_COLORS.map((_, i) => `C${i + 1}`);
+
 // Divide un pentágono (V0..V4, CCW) en 11 polígonos: 1 centro, 5 esquinas y
 // 5 aristas. Devuelve arrays de puntos (Vector3) por sticker.
 function subdivide(V) {

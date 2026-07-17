@@ -12,7 +12,13 @@ import {
   PYRA_AXES,
   PYRA_VERTEX_LABELS,
 } from "../logic/pyraminx.js";
-import { buildMegaminx, MEGA_FACES } from "../logic/megaminx.js";
+import {
+  buildMegaminx,
+  MEGA_FACES,
+  MEGA_AXES,
+  MEGA_LAYER,
+  MEGA_FACE_LABELS,
+} from "../logic/megaminx.js";
 
 // Tamaño de cada cubelet y separación entre ellos.
 const SIZE = 1;
@@ -54,6 +60,9 @@ export function layerLabel(index, N) {
 export function moveLabel(move, N = 3) {
   if (!move) return "";
   const arrow = move.direction === 1 ? "↻" : "↺";
+  if (move.face !== undefined) {
+    return `${MEGA_FACE_LABELS[move.face]} ${arrow}`;
+  }
   if (move.vertex !== undefined) {
     return `${PYRA_VERTEX_LABELS[move.vertex]} ${arrow}`;
   }
@@ -177,7 +186,8 @@ function isInverse(a, b) {
     a.direction === -b.direction &&
     a.axis === b.axis &&
     a.index === b.index &&
-    a.vertex === b.vertex
+    a.vertex === b.vertex &&
+    a.face === b.face
   );
 }
 
@@ -789,9 +799,81 @@ export default function useRubikCube() {
     requestAnimationFrame(animate);
   };
 
+  // Giro de una cara del Megaminx (72°). Selecciona los 26 stickers de la capa
+  // (1 centro + 5 esquinas + 5 aristas + su anillo en las 5 caras vecinas) por
+  // proyección sobre la normal de la cara y los rota alrededor de ella.
+  const megaRotate = (face, direction) => {
+    if (puzzleRef.current !== "mega") return;
+    if (rotating.current || !cubeGroupRef.current) return;
+    rotating.current = true;
+
+    const axis = MEGA_AXES[face];
+    const angle = ((2 * Math.PI) / 5) * direction;
+
+    setLastMove(moveLabel({ face, direction }));
+    pushMoveObj({ face, direction });
+
+    const scored = cubelets.current.map((st) => ({
+      st,
+      d: st.position.dot(axis),
+    }));
+    scored.sort((a, b) => b.d - a.d);
+    const layer = scored.slice(0, MEGA_LAYER).map((s) => s.st);
+
+    const group = new THREE.Group();
+    layer.forEach((st) => {
+      cubeGroupRef.current.remove(st);
+      group.add(st);
+    });
+    cubeGroupRef.current.add(group);
+
+    const duration = 300;
+    const start = performance.now();
+    const q = new THREE.Quaternion();
+
+    function animate(now) {
+      const t = Math.min((now - start) / duration, 1);
+      group.quaternion.copy(q.setFromAxisAngle(axis, angle * t));
+      if (t < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        group.quaternion.copy(q.setFromAxisAngle(axis, angle));
+        group.updateMatrixWorld();
+        layer.forEach((st) => {
+          st.position.applyAxisAngle(axis, angle);
+          snapToHome(st.position);
+          st.rotateOnWorldAxis(axis, angle);
+          st.updateMatrixWorld(true);
+          cubeGroupRef.current.add(st);
+        });
+        cubeGroupRef.current.remove(group);
+        rotating.current = false;
+        refreshProgress();
+      }
+    }
+    requestAnimationFrame(animate);
+  };
+
   const shuffle = (moves = 20) => {
-    // El Megaminx (Fase 1) aún no es jugable: sin giros que mezclar.
-    if (puzzleRef.current === "mega") return;
+    if (puzzleRef.current === "mega") {
+      // Mezcla del Megaminx: giros de cara al azar.
+      if (rotating.current) return;
+      everScrambledRef.current = true;
+      setEverScrambled(true);
+      let i = 0;
+      const n = Math.min(moves, 15);
+      const doMove = () => {
+        if (i >= n) return;
+        megaRotate(
+          Math.floor(Math.random() * 12),
+          Math.random() < 0.5 ? 1 : -1
+        );
+        i++;
+        setTimeout(doMove, 360);
+      };
+      doMove();
+      return;
+    }
     if (puzzleRef.current === "pyra") {
       // Mezcla del Pyraminx: giros de vértice al azar.
       if (rotating.current) return;
@@ -925,6 +1007,7 @@ export default function useRubikCube() {
     puzzle,
     rotateLayer,
     pyraRotate,
+    megaRotate,
     shuffle,
     resetCube,
     toggleRotation,

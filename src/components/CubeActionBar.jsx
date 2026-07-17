@@ -16,14 +16,14 @@ export default function CubeActionBar({
 }) {
   const rotationClass = isRotating ? "rotating" : "stopped";
   const isCube = puzzle === "cube";
-  const isMega = puzzle === "mega";
 
   // Instrucción según el puzzle activo.
-  const instruction = isMega
-    ? "Megaminx (dodecaedro): explora la geometría girando la vista. Pronto será jugable."
-    : puzzle === "pyra"
-    ? "Gira cada vértice (A/B/C/D) 120° para resolver la pirámide"
-    : "Teclas para rotar: Q/A/Z/W/S/X (X), E/D/C/R/F/V (Y), T/G/B/Y/H/N (Z)";
+  const instruction =
+    puzzle === "mega"
+      ? "Gira cada cara (C1…C12) 72° para resolver el Megaminx"
+      : puzzle === "pyra"
+      ? "Gira cada vértice (A/B/C/D) 120° para resolver la pirámide"
+      : "Teclas para rotar: Q/A/Z/W/S/X (X), E/D/C/R/F/V (Y), T/G/B/Y/H/N (Z)";
 
   if (isMobile) {
     return (
@@ -35,14 +35,12 @@ export default function CubeActionBar({
           >
             {isRotating ? "⏸️ Parar" : "▶️ Rotar"}
           </button>
-          {!isMega && (
-            <button
-              className="compact-button shuffle-button"
-              onClick={() => onShuffle(20)}
-            >
-              🎲 Mezclar
-            </button>
-          )}
+          <button
+            className="compact-button shuffle-button"
+            onClick={() => onShuffle(20)}
+          >
+            🎲 Mezclar
+          </button>
           <button className="compact-button reset-button" onClick={onReset}>
             🔄 Reset
           </button>
@@ -68,14 +66,12 @@ export default function CubeActionBar({
         >
           {isRotating ? "Detener rotación" : "Reanudar rotación"}
         </button>
-        {!isMega && (
-          <button
-            className="main-button shuffle-button"
-            onClick={() => onShuffle(20)}
-          >
-            {isCube ? "Mezclar cubo" : "Mezclar"}
-          </button>
-        )}
+        <button
+          className="main-button shuffle-button"
+          onClick={() => onShuffle(20)}
+        >
+          {isCube ? "Mezclar cubo" : "Mezclar"}
+        </button>
         <button className="main-button reset-button" onClick={onReset}>
           {isCube ? "Resetear cubo" : "Reiniciar"}
         </button>
