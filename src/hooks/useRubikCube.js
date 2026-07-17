@@ -12,6 +12,7 @@ import {
   PYRA_AXES,
   PYRA_VERTEX_LABELS,
 } from "../logic/pyraminx.js";
+import { buildMegaminx, MEGA_FACES } from "../logic/megaminx.js";
 
 // Tamaño de cada cubelet y separación entre ellos.
 const SIZE = 1;
@@ -226,8 +227,9 @@ export default function useRubikCube() {
   const puzzleRef = useRef("cube");
   // Posiciones "home" de los stickers del Pyraminx (para el encaje).
   const pyraHomesRef = useRef([]);
-  // Cuerpo (núcleo oscuro) del Pyraminx, para re-aplicarle el skin.
-  const pyraBodyRef = useRef(null);
+  // Cuerpo (núcleo oscuro) de los puzzles basados en stickers (Pyraminx /
+  // Megaminx), para re-aplicarle el skin.
+  const solidBodyRef = useRef(null);
   const cameraRef = useRef(null);
   const controlsRef = useRef(null);
   const composerRef = useRef(null); // post-proceso (bloom) para el skin neón
@@ -284,7 +286,11 @@ export default function useRubikCube() {
     const ctr = controlsRef.current;
     if (!cam) return;
     const dist =
-      puzzleRef.current === "pyra" ? 6 : 4.2 + sizeRef.current * 1.4;
+      puzzleRef.current === "pyra"
+        ? 6
+        : puzzleRef.current === "mega"
+        ? 6.5
+        : 4.2 + sizeRef.current * 1.4;
     cam.position.setLength(dist);
     if (ctr) {
       ctr.target.set(0, 0, 0);
@@ -296,18 +302,20 @@ export default function useRubikCube() {
   const createCubelets = () => {
     cubelets.current = [];
 
-    if (puzzleRef.current === "pyra") {
-      // Usa los materiales del skin actual para que Cristal/Clásico/Neón/Metal
-      // afecten también a la pirámide (cuerpo + stickers de color).
+    if (puzzleRef.current === "pyra" || puzzleRef.current === "mega") {
+      // Puzzles basados en stickers (pirámide / Megaminx). Usan los materiales
+      // del skin actual para que Cristal/Clásico/Neón/Metal también les afecten.
       const { body: bodyMat, getFace } = buildMaterials();
-      const { stickers, homes, body } = buildPyraminx(cubeGroupRef.current, {
-        scale: 1.75,
+      const build = puzzleRef.current === "mega" ? buildMegaminx : buildPyraminx;
+      const scale = puzzleRef.current === "mega" ? 1.6 : 1.75;
+      const { stickers, homes, body } = build(cubeGroupRef.current, {
+        scale,
         bodyMaterial: bodyMat,
         faceMaterial: (c) => getFace(c),
       });
       cubelets.current = stickers;
       pyraHomesRef.current = homes;
-      pyraBodyRef.current = body;
+      solidBodyRef.current = body;
       return;
     }
 
@@ -575,8 +583,10 @@ export default function useRubikCube() {
     let total = 0;
     let correct = 0;
 
-    if (puzzleRef.current === "pyra") {
-      // Pyraminx: cada sticker se compara con la normal de cara más cercana.
+    if (puzzleRef.current === "pyra" || puzzleRef.current === "mega") {
+      // Puzzles de stickers: cada sticker se compara con la normal de la cara
+      // más cercana según su orientación actual.
+      const FACES = puzzleRef.current === "mega" ? MEGA_FACES : PYRA_FACES;
       cubelets.current.forEach((st) => {
         const d = st.userData;
         if (!d || !d.isSticker) return;
@@ -586,7 +596,7 @@ export default function useRubikCube() {
         );
         let best = -2;
         let bestColor = null;
-        PYRA_FACES.forEach((f) => {
+        FACES.forEach((f) => {
           const dot =
             v.x * f.normal[0] + v.y * f.normal[1] + v.z * f.normal[2];
           if (dot > best) {
@@ -639,8 +649,9 @@ export default function useRubikCube() {
   };
 
   const rotateLayer = (axis, index, direction) => {
-    // El Pyraminx (Fase 1) aún no tiene giros implementados.
-    if (puzzleRef.current === "pyra") return;
+    // Solo el cubo N×N×N gira por capas ortogonales; los puzzles de stickers
+    // (pirámide / Megaminx) usan su propia mecánica.
+    if (puzzleRef.current !== "cube") return;
     if (rotating.current || !cubeGroupRef.current) return;
     rotating.current = true;
 
@@ -779,6 +790,8 @@ export default function useRubikCube() {
   };
 
   const shuffle = (moves = 20) => {
+    // El Megaminx (Fase 1) aún no es jugable: sin giros que mezclar.
+    if (puzzleRef.current === "mega") return;
     if (puzzleRef.current === "pyra") {
       // Mezcla del Pyraminx: giros de vértice al azar.
       if (rotating.current) return;
@@ -877,10 +890,10 @@ export default function useRubikCube() {
     skinRef.current = s;
     setSkinState(s);
     const { body, getFace } = buildMaterials();
-    if (puzzleRef.current === "pyra") {
-      // Pyraminx: los cubelets son los propios stickers (sin hijos); el núcleo
-      // oscuro se guarda aparte en pyraBodyRef.
-      if (pyraBodyRef.current) pyraBodyRef.current.material = body;
+    if (puzzleRef.current === "pyra" || puzzleRef.current === "mega") {
+      // Puzzles de stickers: los cubelets son los propios stickers (sin hijos);
+      // el núcleo oscuro se guarda aparte en solidBodyRef.
+      if (solidBodyRef.current) solidBodyRef.current.material = body;
       cubelets.current.forEach((st) => {
         if (st.userData && st.userData.isSticker) {
           st.material = getFace(st.userData.color);

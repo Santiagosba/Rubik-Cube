@@ -5,6 +5,7 @@ import { SKINS } from "../hooks/useRubikCube";
 const PUZZLES = [
   { id: "cube", label: "Cubo", emoji: "🧊" },
   { id: "pyra", label: "Pirámide", emoji: "🔺" },
+  { id: "mega", label: "Megaminx", emoji: "⬠" },
 ];
 
 const TYPES = [
