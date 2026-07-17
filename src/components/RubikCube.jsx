@@ -40,6 +40,7 @@ export default function RubikCube() {
   const [difficulty, setDifficulty] = useState("easy");
 
   const isPyra = puzzle === "pyra";
+  const isMega = puzzle === "mega";
 
   // Solo el modo fácil resalta el botón/pestaña de la pista.
   const hintMove = difficulty === "easy" ? nextHint : null;
@@ -49,7 +50,7 @@ export default function RubikCube() {
       isRotating={isRotating}
       lastMove={lastMove}
       isMobile={isMobile}
-      isPyra={isPyra}
+      puzzle={puzzle}
       onToggleRotation={toggleRotation}
       onShuffle={shuffle}
       onReset={resetCube}
@@ -89,7 +90,15 @@ export default function RubikCube() {
     />
   );
 
-  const controls = isPyra ? (
+  const controls = isMega ? (
+    <div className="controls-container mega-note">
+      <p>
+        🧩 <strong>Megaminx</strong> (dodecaedro de 12 caras). Por ahora puedes
+        explorar su geometría girando la vista; los giros por cara llegarán en la
+        siguiente fase.
+      </p>
+    </div>
+  ) : isPyra ? (
     <PyraControls onRotate={pyraRotate} hintMove={hintMove} />
   ) : (
     <CubeControls
