@@ -581,16 +581,27 @@
   gap: 12px;
 }
 
+/* Cada cara es una fila compacta: color + etiqueta a la izquierda y los dos
+   giros a la derecha. Así las 12 caras ocupan poco y se leen de un vistazo. */
 .controls-container.mega .mega-face {
-  min-width: 118px;
-  padding: 12px;
+  flex: 1 1 150px;
+  max-width: 230px;
+  min-width: 0;
+  margin: 0;
+  padding: 9px 10px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .controls-container.mega .mega-face h3 {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 8px;
+  margin: 0;
+  font-size: 15px;
 }
 
 .mega-swatch {
@@ -599,15 +610,18 @@
   border-radius: 5px;
   border: 1px solid rgba(255, 255, 255, 0.6);
   box-shadow: 0 0 8px rgba(0, 0, 0, 0.4);
+  flex-shrink: 0;
 }
 
 .controls-container.mega .button-group {
-  gap: 8px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .controls-container.mega .glass-button {
-  min-width: 46px;
+  min-width: 40px;
   font-size: 18px;
+  padding: 8px;
 }
 
 /* Pestañas de eje (solo móvil) para elegir X / Y / Z sin scroll largo. */
