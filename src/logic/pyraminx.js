@@ -28,6 +28,12 @@ export const PYRA_COLORS = [
   0xffd500, // amarilla (opuesta a V3)
 ];
 
+// Colores que se encuentran en cada vértice: las 3 caras que lo tocan (todas
+// menos la opuesta). Sirve para identificar cada vértice en los controles.
+export const PYRA_VERTEX_COLORS = [0, 1, 2, 3].map((v) =>
+  [0, 1, 2, 3].filter((k) => k !== v).map((k) => PYRA_COLORS[k])
+);
+
 // Normal exterior y color de cada una de las 4 caras (para el progreso).
 export const PYRA_FACES = RAW_VERTICES.map((v, i) => {
   const n = new THREE.Vector3(v[0], v[1], v[2]).normalize().multiplyScalar(-1);

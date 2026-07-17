@@ -526,16 +526,51 @@
   margin-top: 6px;
 }
 
-/* Controles del Pyraminx: los 4 vértices en rejilla, no en columna. */
+/* Controles del Pyraminx: los 4 vértices en rejilla compacta (2×2 en móvil,
+   4 en fila en escritorio). */
 .controls-container.pyra {
   flex-direction: row;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 16px;
+  gap: 12px;
 }
 
-.controls-container.pyra .axis-section {
-  min-width: 150px;
+.controls-container.pyra .pyra-vertex {
+  flex: 1 1 140px;
+  max-width: 190px;
+  min-width: 0;
+  margin: 0;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.controls-container.pyra .pyra-vertex h3 {
+  margin: 0;
+}
+
+.pyra-swatches {
+  display: flex;
+  gap: 6px;
+}
+
+.pyra-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.4);
+}
+
+.controls-container.pyra .button-group {
+  gap: 10px;
+}
+
+.controls-container.pyra .glass-button {
+  min-width: 52px;
+  font-size: 20px;
 }
 
 /* Controles del Megaminx: las 12 caras en rejilla compacta. */
