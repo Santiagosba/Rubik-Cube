@@ -2,6 +2,7 @@
 // Geometría y ejes de un Pyraminx (tetraedro): 4 caras de color, cada una
 // subdividida en 9 triángulos (3 tips + 3 axiales + 3 aristas).
 import * as THREE from "three";
+import { makePrism } from "./prism.js";
 
 // Vértices de un tetraedro regular centrado en el origen.
 const RAW_VERTICES = [
@@ -76,10 +77,11 @@ export function buildPyraminx(parent, opts = {}) {
     { opp: 3, tri: [0, 2, 1] },
   ];
 
-  // Cuerpo oscuro: tetraedro sólido un poco más pequeño (estático).
+  // Cuerpo oscuro: tetraedro sólido pequeño (relleno del núcleo, oculto tras
+  // las piezas). Las piezas ahora tienen volumen, así que basta un núcleo.
   const bodyGeo = new THREE.BufferGeometry();
   const bodyPos = [];
-  const bScale = 0.985;
+  const bScale = 0.55;
   faces.forEach(({ tri }) => {
     const [a, b, c] = tri.map((k) => V[k].clone().multiplyScalar(bScale));
     bodyPos.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
@@ -119,24 +121,17 @@ export function buildPyraminx(parent, opts = {}) {
     tris.forEach((pts) => {
       const cen = pts[0].clone().add(pts[1]).add(pts[2]).multiplyScalar(1 / 3);
       const shrink = 0.86;
-      // Geometría centrada en el centroide; el mesh se posiciona en él.
-      const local = pts.map((v) => v.clone().sub(cen).multiplyScalar(shrink));
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute(
-        "position",
-        new THREE.Float32BufferAttribute(
-          [
-            local[0].x, local[0].y, local[0].z,
-            local[1].x, local[1].y, local[1].z,
-            local[2].x, local[2].y, local[2].z,
-          ],
-          3
-        )
+      // Polígono exterior (encogido y ligeramente hacia afuera) y su extrusión
+      // hacia el centro para dar volumen a la pieza.
+      const outer = pts.map((v) =>
+        cen
+          .clone()
+          .add(v.clone().sub(cen).multiplyScalar(shrink))
+          .addScaledVector(normal, 0.02)
       );
-      geo.computeVertexNormals();
-      const mesh = new THREE.Mesh(geo, faceMaterial(color));
-      // Posición = centroide + pequeño desplazamiento hacia afuera.
-      mesh.position.copy(cen).addScaledVector(normal, 0.02);
+      const { geometry, position } = makePrism(outer, 0.5);
+      const mesh = new THREE.Mesh(geometry, faceMaterial(color));
+      mesh.position.copy(position);
       mesh.userData = {
         isSticker: true,
         faceIndex: opp,
