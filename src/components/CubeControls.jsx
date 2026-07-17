@@ -17,16 +17,13 @@ function layerLabel(index, N) {
   return String(index + 1);
 }
 
-// Movimientos de un eje para un cubo N×N×N: capas de arriba (N-1) a abajo (0),
-// cada una en los dos sentidos. Devuelve [gridIndex, dir, label].
-function axisMoves(axis, N) {
-  const moves = [];
+// Capas de un eje para un cubo N×N×N, de arriba (N-1) a abajo (0).
+function axisLayers(axis, N) {
+  const layers = [];
   for (let g = N - 1; g >= 0; g--) {
-    const label = `${axis.toUpperCase()}${layerLabel(g, N)}`;
-    moves.push([g, 1, label]);
-    moves.push([g, -1, label]);
+    layers.push({ index: g, label: `${axis.toUpperCase()}${layerLabel(g, N)}` });
   }
-  return moves;
+  return layers;
 }
 
 function isHinted(hintMove, axis, index, dir) {
@@ -38,29 +35,39 @@ function isHinted(hintMove, axis, index, dir) {
   );
 }
 
-function AxisButtons({ axis, N, onRotate, isMobile, hintMove }) {
+// Lista de capas de un eje: cada fila es una capa con sus dos giros (↻ / ↺).
+function LayerRows({ axis, N, onRotate, hintMove }) {
   return (
-    <div className="button-group">
-      {axisMoves(axis, N).map(([index, dir, label]) => {
-        const arrow = dir === 1 ? "↻" : "↺";
-        const text = isMobile ? `${label} ${arrow}` : `Girar ${label} ${arrow}`;
-        const hinted = isHinted(hintMove, axis, index, dir);
-        return (
-          <button
-            key={`${label}-${dir}`}
-            className={`glass-button ${hinted ? "hint" : ""}`}
-            onClick={() => onRotate(axis, index, dir)}
-          >
-            {text}
-          </button>
-        );
-      })}
+    <div className="layer-list">
+      {axisLayers(axis, N).map(({ index, label }) => (
+        <div className="layer-row" key={label}>
+          <span className="layer-label">{label}</span>
+          <div className="button-group">
+            {[1, -1].map((dir) => {
+              const hinted = isHinted(hintMove, axis, index, dir);
+              return (
+                <button
+                  key={dir}
+                  className={`glass-button ${hinted ? "hint" : ""}`}
+                  onClick={() => onRotate(axis, index, dir)}
+                  aria-label={`Girar ${label} ${
+                    dir === 1 ? "horario" : "antihorario"
+                  }`}
+                >
+                  {dir === 1 ? "↻" : "↺"}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
 
 /**
- * Panel de botones para girar cada capa del cubo (2×2 o 3×3).
+ * Panel de botones para girar cada capa del cubo (2×2 … 5×5). Cada capa es una
+ * fila con su etiqueta y sus dos sentidos de giro.
  *
  * En escritorio muestra los tres ejes lado a lado; en móvil usa pestañas para
  * mostrar un solo eje a la vez. Si hay pista (modo fácil) resalta el botón a
@@ -95,11 +102,10 @@ export default function CubeControls({ onRotate, isMobile, hintMove, cubeSize = 
         </div>
 
         <div className="axis-section">
-          <AxisButtons
+          <LayerRows
             axis={current.axis}
             N={cubeSize}
             onRotate={onRotate}
-            isMobile
             hintMove={hintMove}
           />
         </div>
@@ -112,11 +118,10 @@ export default function CubeControls({ onRotate, isMobile, hintMove, cubeSize = 
       {AXES.map(({ axis, title }) => (
         <div className="axis-section" key={axis}>
           <h3>{title}</h3>
-          <AxisButtons
+          <LayerRows
             axis={axis}
             N={cubeSize}
             onRotate={onRotate}
-            isMobile={false}
             hintMove={hintMove}
           />
         </div>

@@ -624,6 +624,47 @@
   padding: 8px;
 }
 
+/* Controles del cubo N×N: cada capa es una fila con su etiqueta y sus dos
+   sentidos de giro (↻ / ↺), más compacto y sin repetir la etiqueta. */
+.layer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.layer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px 8px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.layer-label {
+  font-weight: 700;
+  font-size: 17px;
+  color: #cfefff;
+  min-width: 34px;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.25);
+}
+
+.layer-row .button-group {
+  display: flex;
+  gap: 8px;
+}
+
+.controls-container .layer-row .glass-button {
+  min-width: 46px;
+  min-height: 46px;
+  padding: 8px;
+  font-size: 19px;
+}
+
 /* Pestañas de eje (solo móvil) para elegir X / Y / Z sin scroll largo. */
 .axis-tabs {
   display: grid;
