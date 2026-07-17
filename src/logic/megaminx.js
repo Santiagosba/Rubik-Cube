@@ -4,6 +4,7 @@
 // Megaminx real. Sigue el mismo patrón que el Pyraminx: cuerpo oscuro sólido
 // + stickers de color, cada uno con su normal para calcular el progreso.
 import * as THREE from "three";
+import { makePrism } from "./prism.js";
 
 // 12 colores vivos y bien diferenciados (uno por cara).
 export const MEGA_COLORS = [
@@ -165,10 +166,11 @@ export function buildMegaminx(parent, opts = {}) {
   const stickers = [];
   const homes = [];
 
-  // Cuerpo oscuro: dodecaedro sólido un poco más pequeño (estático).
+  // Cuerpo oscuro: dodecaedro sólido pequeño (relleno del núcleo, oculto tras
+  // las piezas, que ahora tienen volumen).
   const bodyGeo = new THREE.BufferGeometry();
   const bodyPos = [];
-  const bScale = 0.975;
+  const bScale = 0.55;
   faces.forEach(({ verts }) => {
     const p = verts.map((v) => v.clone().multiplyScalar(bScale));
     fanIndices(5).forEach((k) => bodyPos.push(p[k].x, p[k].y, p[k].z));
@@ -190,21 +192,17 @@ export function buildMegaminx(parent, opts = {}) {
       cen.multiplyScalar(1 / pts.length);
 
       const shrink = 0.93;
-      const local = pts.map((p) => p.clone().sub(cen).multiplyScalar(shrink));
-      const positions = [];
-      fanIndices(local.length).forEach((k) =>
-        positions.push(local[k].x, local[k].y, local[k].z)
+      // Polígono exterior (encogido y hacia afuera) extruido hacia el centro
+      // para dar volumen a cada pieza.
+      const outer = pts.map((p) =>
+        cen
+          .clone()
+          .add(p.clone().sub(cen).multiplyScalar(shrink))
+          .addScaledVector(nrm, 0.02)
       );
-
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute(
-        "position",
-        new THREE.Float32BufferAttribute(positions, 3)
-      );
-      geo.computeVertexNormals();
-
-      const mesh = new THREE.Mesh(geo, faceMaterial(color));
-      mesh.position.copy(cen).addScaledVector(nrm, 0.02);
+      const { geometry, position } = makePrism(outer, 0.6);
+      const mesh = new THREE.Mesh(geometry, faceMaterial(color));
+      mesh.position.copy(position);
       mesh.userData = {
         isSticker: true,
         faceIndex,
